@@ -2,9 +2,9 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  border: 1px solid #243041;
-  border-radius: 8px;
-  background: #101822;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
   padding: 12px;
 }
 
@@ -17,7 +17,7 @@
 
 .auth-bar__header h2 {
   margin: 0;
-  color: #f0f6fc;
+  color: var(--text);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0;
@@ -26,14 +26,15 @@
 .auth-bar__header p {
   overflow-wrap: anywhere;
   margin: 4px 0 0;
-  color: #8b949e;
+  color: var(--text-muted);
   font-size: 12px;
   line-height: 1.4;
 }
 
 .auth-bar__status {
   flex: 0 0 auto;
-  border-radius: 999px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
   padding: 3px 8px;
   font-size: 11px;
   font-weight: 700;
@@ -42,57 +43,53 @@
 .auth-bar__auth-ok,
 .auth-bar__auth-warn {
   margin: 0;
-  border-radius: 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
   padding: 7px 9px;
   font-size: 12px;
   line-height: 1.4;
 }
 
-.auth-bar__auth-ok {
-  background: #102f28;
-  color: #56d3a6;
-}
-
-.auth-bar__auth-warn {
-  background: #372916;
-  color: #f6c177;
-}
-
+.auth-bar__auth-ok,
 .auth-bar__status--ok {
-  background: #123225;
-  color: #46d47e;
+  border-color: color-mix(in srgb, var(--pos) 40%, transparent);
+  background: var(--pos-soft);
+  color: var(--pos);
 }
 
+.auth-bar__auth-warn,
 .auth-bar__status--locked {
-  background: #2d2812;
-  color: #f2cc60;
+  border-color: color-mix(in srgb, var(--text-muted) 34%, var(--border));
+  background: var(--neutral-soft);
+  color: var(--text-muted);
 }
 
 .auth-bar__status--off {
-  background: #3a2020;
-  color: #ff8585;
+  border-color: color-mix(in srgb, var(--neg) 36%, transparent);
+  background: var(--neg-soft);
+  color: var(--neg);
 }
 
 .auth-bar__address {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  border: 1px solid #222a35;
-  border-radius: 6px;
-  background: #0d1117;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
   padding: 9px 10px;
 }
 
 .auth-bar__address span,
 .auth-bar__address small,
 .auth-bar__form label {
-  color: #8b949e;
+  color: var(--text-muted);
   font-size: 12px;
 }
 
 .auth-bar__address strong {
   overflow-wrap: anywhere;
-  color: #e6edf3;
+  color: var(--text);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px;
   font-weight: 600;
@@ -119,17 +116,17 @@
 .auth-bar input {
   width: 100%;
   min-width: 0;
-  border: 1px solid #303947;
-  border-radius: 6px;
-  background: #0d1117;
-  color: #e6edf3;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
   outline: none;
   padding: 8px 9px;
 }
 
 .auth-bar input:focus {
-  border-color: #58a6ff;
-  box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.18);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
 }
 
 .auth-bar__secret-row {
@@ -142,26 +139,46 @@
 .auth-bar__secondary,
 .auth-bar__danger,
 .auth-bar__secret-row button {
-  border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 8px 12px;
-  color: #ffffff;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .auth-bar__primary {
   align-self: flex-end;
-  background: #238636;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.auth-bar__primary:hover {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
 }
 
 .auth-bar__secondary,
 .auth-bar__secret-row button {
-  background: #263342;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+}
+
+.auth-bar__secondary:hover,
+.auth-bar__secret-row button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .auth-bar__danger {
-  background: #8e2b2b;
+  border: 1px solid color-mix(in srgb, var(--neg) 42%, var(--border));
+  background: transparent;
+  color: var(--neg);
+}
+
+.auth-bar__danger:hover {
+  border-color: var(--neg);
+  background: var(--neg-soft);
 }
 
 .auth-bar__actions {
@@ -172,10 +189,10 @@
 
 .auth-bar__error {
   margin: 0;
-  border: 1px solid #5f2424;
-  border-radius: 6px;
-  background: #2a1518;
-  color: #ffb4b4;
+  border: 1px solid color-mix(in srgb, var(--neg) 42%, var(--border));
+  border-radius: var(--radius-sm);
+  background: var(--neg-soft);
+  color: var(--neg);
   padding: 8px 10px;
   font-size: 12px;
   line-height: 1.4;

@@ -111,6 +111,16 @@ export function PositionCard({ position, book, multipliers, lastUpdated }: Posit
             </strong>
           </div>
         </div>
+        <div className="position-card__actions">
+          <button
+            className="position-card__redeem"
+            onClick={() => window.open('https://polymarket.com/portfolio', '_blank', 'noopener,noreferrer')}
+            type="button"
+          >
+            {t('position.redeem')}
+          </button>
+          <small className="position-card__redeem-note">{t('position.redeemNote')}</small>
+        </div>
       </article>
     );
   }

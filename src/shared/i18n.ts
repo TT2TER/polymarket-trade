@@ -97,6 +97,11 @@ const DICTIONARY = {
   'position.impliedProb': { zh: '隐含概率', en: 'Implied prob' },
   'position.unrealizedPnl': { zh: '未实现盈亏', en: 'Unrealized PnL' },
   'position.settledRedeemable': { zh: '已结算 · 可赎回', en: 'Settled · redeemable' },
+  'position.redeem': { zh: '在 Polymarket 赎回 ↗', en: 'Redeem on Polymarket ↗' },
+  'position.redeemNote': {
+    zh: '市场已结算。在 Polymarket 赎回以领取收益(扩展暂不支持链上赎回)。',
+    en: 'Market resolved. Redeem on Polymarket to claim (on-chain redeem not yet in-extension).',
+  },
   'position.waiting': { zh: '等待中', en: 'Waiting' },
   'position.capped': { zh: '已封顶', en: 'capped' },
   'position.notAvailable': { zh: '无', en: 'n/a' },

@@ -223,6 +223,12 @@ i18n:AuthBar 文案集中在 `TEXT` 常量,便于 P6 抽取。
 
 **测试**:`TESTING.md` 已编写(A 无需持仓 / B 小额持仓 dry-run / C 关 dry-run 小额实盘)。
 
+### 第二轮反馈(2026-06-18,用户测完 A 类后)
+- **已结算·可赎回持仓**:卡片新增「在 Polymarket 赎回 ↗」按钮(打开 portfolio)+ 说明。扩展内链上赎回(Magic 代理钱包经 CTF/NegRiskAdapter)是独立后续项,未做。
+- **Polymarket 主题改造**:自托管 **Inter**(`@fontsource/inter` 400/500/600/700,main.tsx 导入);styles.css 定义 Polymarket 调色板 CSS 变量并全局换肤 —— **Poly Blue `#2E5CFF`** 主色、暗色面板(`--bg #0b0e16`/`--surface #141a24`)、Yes/No 绿红(`#27AE60`/`#EB5757`)、12px 卡片圆角、主按钮实心蓝。AuthBar.css 同步。
+- **Bug 修复**:模拟交易开关文字不居中 → `.settings-form__checkbox` 改横向对齐(row + align-items center)。
+- 所有 var() 引用均在 :root 定义;构建 + 三自测通过。视觉「完全一致」待用户加载 dist 肉眼确认后微调。
+
 ## 7. 变更日志
 
 - 2026-06-17:需求确认完成,确立架构与止损公式,启动 P0 脚手架。
