@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Polymarket 会话整理与世界杯 API 附录</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7fb;
+      --panel: #ffffff;
+      --panel-2: #f1f4f9;
+      --text: #16202a;
+      --muted: #5d6b7a;
+      --border: #d9e1ec;
+      --accent: #146c94;
+      --accent-2: #0f4c5c;
+      --code-bg: #0f172a;
+      --code-text: #e2e8f0;
+      --good: #166534;
+      --warn: #9a3412;
+      --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      --radius: 10px;
+      --max: 1100px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, #eef3f8 0%, var(--bg) 100%);
+      line-height: 1.6;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 28px 18px 60px;
+    }
+    .hero {
+      background: linear-gradient(135deg, #0f4c5c 0%, #146c94 55%, #1a8ab1 100%);
+      color: #fff;
+      border-radius: 18px;
+      padding: 28px 28px 26px;
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+    }
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: 30px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+    .hero p {
+      margin: 0;
+      max-width: 900px;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.14);
+      font-size: 13px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.9fr);
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px 18px 16px;
+    }
+    .card h2, .card h3 {
+      margin: 0 0 10px;
+      line-height: 1.25;
+    }
+    .card h2 { font-size: 22px; }
+    .card h3 { font-size: 18px; margin-top: 20px; }
+    .muted { color: var(--muted); }
+    .toc {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .toc a {
+      display: block;
+      padding: 10px 12px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+    }
+    .toc a:hover { border-color: var(--accent); text-decoration: none; }
+    .note {
+      border-left: 4px solid var(--accent);
+      background: #eef7fb;
+      padding: 12px 14px;
+      border-radius: 8px;
+      margin: 14px 0;
+    }
+    .warn {
+      border-left-color: #b45309;
+      background: #fff7ed;
+    }
+    .good {
+      border-left-color: var(--good);
+      background: #f0fdf4;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 14px;
+    }
+    th, td {
+      vertical-align: top;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+    th {
+      background: #eef3f8;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+    tr:last-child td { border-bottom: 0; }
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+    }
+    pre {
+      background: var(--code-bg);
+      color: var(--code-text);
+      padding: 14px 16px;
+      border-radius: 10px;
+      overflow: auto;
+      line-height: 1.5;
+      margin: 12px 0;
+    }
+    ul { margin: 10px 0 10px 20px; padding: 0; }
+    li { margin: 6px 0; }
+    .two-col {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .small { font-size: 13px; }
+    .footer {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 18px;
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #e8eef4;
+      margin-right: 6px;
+      font-size: 12px;
+    }
+    @media (max-width: 900px) {
+      .grid, .two-col { grid-template-columns: 1fr; }
+      .hero { padding: 22px 18px; }
+      .hero h1 { font-size: 26px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Polymarket 会话整理与世界杯 API 附录</h1>
+      <p>
+        这份 HTML 把本次会话整理成可阅读的单页文档：先回顾你提出的问题与我给出的结论，再附上
+        “世界杯市场实时数据字段清单 + 对应 API 路径”，最后给出一个适合做半自动工具的实现拆分。
+      </p>
+      <div class="meta">
+        <span class="chip">主题：Polymarket / 世界杯市场</span>
+        <span class="chip">用途：阅读、回顾、实现参考</span>
+        <span class="chip">时间：2026-06-17</span>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2 id="summary">一、会话内容梳理</h2>
+        <p class="muted">按对话顺序重构，保留核心信息，删掉了重复与无关的搜索过程。</p>
+
+        <h3>1. 你的原始问题</h3>
+        <p>
+          你提供了两个仓库：
+          <a href="https://github.com/dexorynlabs-betting/2026-worldcup-prediction-market" target="_blank" rel="noreferrer">2026-worldcup-prediction-market</a>
+          和
+          <a href="https://github.com/spfunctions/polymarket-sports-mm" target="_blank" rel="noreferrer">polymarket-sports-mm</a>，
+          希望我结合相关项目，说明如何利用 Polymarket API 获取世界杯实时市场交易数据并做交易。
+          你特别关心三件事：API 能拿到哪些信息、如何判断策略、API 能直接执行哪些操作。
+        </p>
+
+        <h3>2. 我给出的核心判断</h3>
+        <ul>
+          <li>Polymarket 的工作流可以拆成四层：市场发现、行情读取、策略判断、认证下单与对账。</li>
+          <li>最稳妥的数据来源是官方的 Gamma API、Data API、CLOB API 和 WebSocket。</li>
+          <li>世界杯场景里，实时盘口、midpoint、spread、last trade、比赛状态和订单回执是最关键的数据面。</li>
+          <li>策略上通常分成方向性交易和做市/奖励型交易两类。</li>
+          <li>实盘要把撮合、撤单、heartbeat、仓位限制和风控放在同一条闭环里。</li>
+        </ul>
+
+        <h3>3. 两个项目分别代表什么</h3>
+        <p>
+          <span class="tag">模型层</span>
+          <strong>2026-worldcup-prediction-market</strong> 更偏世界杯概率模型、历史回测和赔率分析。
+          它适合当成“信号生成器”：先算出你认为的 fair value，再与市场价格比较。
+        </p>
+        <p>
+          <span class="tag">执行层</span>
+          <strong>polymarket-sports-mm</strong> 更像一个可直接参考的做市/报价器。
+          它的核心是：用 midpoint 附近的双边限价单获取流动性奖励，靠 size skew 表达观点，而不是大幅偏移价格。
+        </p>
+
+        <h3>4. 我建议的使用方式</h3>
+        <ol>
+          <li>先用 Gamma API 找到世界杯相关市场和 token。</li>
+          <li>再用 CLOB API 或 WebSocket 拉 orderbook、midpoint、spread、last trade、历史价。</li>
+          <li>把你的世界杯模型输出当 fair value。</li>
+          <li>用 `edge = fair value - market price` 判断是否值得交易，并把手续费、滑点和 tick size 一起计入。</li>
+          <li>如果是做市策略，优先用 midpoint 附近的双边挂单，再按仓位做 size skew。</li>
+          <li>上线后要用 User Channel / 订单查询接口做回执和对账。</li>
+        </ol>
+
+        <div class="note good">
+          你后面要做的半自动工具，最佳切入点不是“先预测”，而是“先把持仓、盘口、回本价、翻倍价和自动挂单闭环做好”。
+          这样后期无论接预测模型还是接分析模块，都不会推倒重来。
+        </div>
+
+        <h3>5. 你第二条消息里的目标</h3>
+        <p>
+          你现在要做一个小工具，半自动跟踪你的买入盘口、LOB 变化、成本和持仓，并计算：
+          现在几块钱能回本、几块钱能翻倍，以及能否自动挂单。后面还要给预测和分析留扩展空间。
+        </p>
+      </div>
+
+      <aside class="card">
+        <h2 id="toc">目录</h2>
+        <ul class="toc">
+          <li><a href="#summary">一、会话内容梳理</a></li>
+          <li><a href="#api">二、世界杯市场实时数据字段清单 + API 路径</a></li>
+          <li><a href="#tool">三、半自动工具的功能拆分</a></li>
+          <li><a href="#refs">四、参考链接</a></li>
+        </ul>
+
+        <h3>适合你的最小版本</h3>
+        <ul>
+          <li>市场列表</li>
+          <li>单市场 orderbook</li>
+          <li>成交价与历史价</li>
+          <li>持仓、均价、未实现盈亏</li>
+          <li>回本价、翻倍价</li>
+          <li>手动/半自动挂单</li>
+        </ul>
+
+        <div class="note warn small">
+          交易接口需要认证，公开行情和市场发现接口不需要。自动挂单、撤单、仓位查询和成交回执要走受限接口。
+        </div>
+      </aside>
+    </section>
+
+    <section class="card" id="api">
+      <h2>二、世界杯市场实时数据字段清单 + 对应 API 路径</h2>
+      <p class="muted">
+        这部分按你做工具最需要的数据来整理，不追求“官方接口全集”，只保留和实盘最相关的字段。
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 18%;">数据层</th>
+            <th style="width: 26%;">关键字段</th>
+            <th style="width: 28%;">用途</th>
+            <th>对应 API / 通道</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>市场发现</td>
+            <td>market slug、condition_id、token_id、title、active、closed、archived、sport、market_type</td>
+            <td>找到世界杯相关市场，筛选 winner / group / head-to-head / prop</td>
+            <td>
+              Gamma API：`GET /events`、`GET /markets`、`GET /market/{slug}`、`GET /sports`
+            </td>
+          </tr>
+          <tr>
+            <td>赛事状态</td>
+            <td>live、ended、period、score、participants、start_time</td>
+            <td>决定赛前、赛中、赛后不同策略</td>
+            <td>
+              Gamma API 事件接口 + Sports WebSocket
+            </td>
+          </tr>
+          <tr>
+            <td>盘口</td>
+            <td>bestBid、bestAsk、midpoint、spread、tickSize</td>
+            <td>定价、挂单、计算可成交区间、识别套利/偏差</td>
+            <td>
+              CLOB API：`GET /orderbook`、`GET /market-price`、`GET /midpoint`、`GET /spread`、`GET /tick-size`
+            </td>
+          </tr>
+          <tr>
+            <td>成交流</td>
+            <td>lastTradePrice、lastTradeSide、trade time、trade size</td>
+            <td>判断市场是否开始移动，追踪真实成交方向</td>
+            <td>
+              CLOB API：`GET /last-trade-price`、`GET /trades`；Market WebSocket
+            </td>
+          </tr>
+          <tr>
+            <td>历史价格</td>
+            <td>price history、candles、time series</td>
+            <td>回测、趋势判断、异常波动识别</td>
+            <td>
+              CLOB API：`GET /prices-history`、`GET /batch-prices-history`
+            </td>
+          </tr>
+          <tr>
+            <td>流动性</td>
+            <td>liquidity、volume、open interest、top holders</td>
+            <td>判断能否进出场，避免薄市场被滑点吃掉</td>
+            <td>
+              Gamma / Data API：`GET /markets`、`GET /open-interest`、`GET /top-holders`
+            </td>
+          </tr>
+          <tr>
+            <td>费用</td>
+            <td>fee rate、rebate、maker reward</td>
+            <td>计算净收益，判断 quote 是否有正期望</td>
+            <td>
+              CLOB API：`GET /fee-rate`；Rebates：`GET /current-rebated-fees`
+            </td>
+          </tr>
+          <tr>
+            <td>仓位</td>
+            <td>positions、avg entry cost、qty、market value、unrealized PnL</td>
+            <td>核心的风控与展示层，决定你“现在赚了多少/亏了多少”</td>
+            <td>
+              Data API：`GET /current-positions`、`GET /closed-positions`、`GET /total-value-of-a-users-positions`
+            </td>
+          </tr>
+          <tr>
+            <td>交易订单</td>
+            <td>order id、side、price、qty、filled size、status、remaining size</td>
+            <td>自动挂单、改单、撤单、部分成交处理</td>
+            <td>
+              CLOB API：`POST /orders`、`DEL /orders/{id}`、`GET /orders/{id}`、`GET /user-orders`、批量下单/撤单接口
+            </td>
+          </tr>
+          <tr>
+            <td>交易回执</td>
+            <td>fills、fills time、trade attribution、user activity</td>
+            <td>成交确认、资金对账、策略复盘</td>
+            <td>
+              Data API：`GET /trades`、`GET /user-activity`；User WebSocket
+            </td>
+          </tr>
+          <tr>
+            <td>认证与会话</td>
+            <td>API key、secret、passphrase、L1 signer、heartbeat</td>
+            <td>下单认证、维持会话、防止自动撤单</td>
+            <td>
+              Authentication、`POST /heartbeat`
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>你这个工具最重要的 6 个实时指标</h3>
+      <ul>
+        <li><strong>当前盘口价</strong>：best bid / best ask / midpoint</li>
+        <li><strong>当前成本</strong>：持仓均价、总投入、手续费</li>
+        <li><strong>回本价</strong>：按持仓和手续费反推的盈亏平衡价格</li>
+        <li><strong>翻倍价</strong>：按当前成本和数量反推目标价位</li>
+        <li><strong>流动性质量</strong>：spread、深度、成交活跃度</li>
+        <li><strong>订单状态</strong>：挂单、部分成交、撤单、成交回执</li>
+      </ul>
+
+      <div class="note">
+        如果你现在先做“半自动工具”，最实用的起点是：
+        先读市场和订单，再算成本/回本/翻倍，再加一个按钮或开关去做自动挂单。预测模块可以后接，不会影响前面的数据与交易闭环。
+      </div>
+    </section>
+
+    <section class="card" id="tool">
+      <h2>三、半自动工具的功能拆分</h2>
+      <p class="muted">
+        按你的描述，这个工具不需要一开始就做得很重。先把可视化和交易闭环做稳，预测和分析后续再加。
+      </p>
+
+      <div class="two-col">
+        <div>
+          <h3>第一阶段：持仓与盘口监控</h3>
+          <ul>
+            <li>市场列表页：只看你买过或关注过的世界杯市场。</li>
+            <li>单市场详情页：展示盘口、midpoint、spread、last trade、最近成交。</li>
+            <li>持仓卡片：数量、均价、当前价值、浮盈浮亏、回本价、翻倍价。</li>
+            <li>LOB 变化：best bid/ask 的刷新、深度变化、盘口跳动提醒。</li>
+          </ul>
+        </div>
+        <div>
+          <h3>第二阶段：半自动执行</h3>
+          <ul>
+            <li>按条件自动挂单：比如 midpoint 附近挂 bid/ask。</li>
+            <li>自动撤单重挂：盘口移动后重新定价。</li>
+            <li>仓位上限：单市场最大仓位、总敞口上限。</li>
+            <li>损失限制：日内亏损上限触发后停止自动操作。</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>建议的计算方式</h3>
+      <pre><code>回本价 = (总买入成本 + 交易手续费) / 持有数量
+
+如果是 YES 票：
+  盈亏 = (卖出价 - 成本价) × 数量 - 手续费
+
+翻倍价可按目标收益反推：
+  目标收益 = 当前总成本
+  目标卖出价 = (总成本 + 手续费 + 目标收益) / 数量</code></pre>
+
+      <p class="small muted">
+        实际实现时要把 fee、tick size、滑点、部分成交和撤单成本一起算进去。单看标价会高估可执行收益。
+      </p>
+
+      <h3>后期可扩展内容</h3>
+      <ul>
+        <li>预测模块：接你的世界杯模型，算 fair value 和 edge。</li>
+        <li>分析模块：统计每个市场的胜率、持有时间、成交质量。</li>
+        <li>策略模块：方向性交易、做市、区间挂单、事件驱动交易。</li>
+        <li>风控模块：最大敞口、最大回撤、黑名单市场、自动停机。</li>
+      </ul>
+    </section>
+
+    <section class="card" id="refs">
+      <h2>四、参考链接</h2>
+      <ul>
+        <li><a href="https://docs.polymarket.com/api-reference/introduction" target="_blank" rel="noreferrer">Polymarket API Introduction</a></li>
+        <li><a href="https://docs.polymarket.com/api-reference/authentication" target="_blank" rel="noreferrer">Polymarket Authentication</a></li>
+        <li><a href="https://docs.polymarket.com/llms.txt" target="_blank" rel="noreferrer">Polymarket llms.txt</a></li>
+        <li><a href="https://github.com/dexorynlabs-betting/2026-worldcup-prediction-market" target="_blank" rel="noreferrer">dexorynlabs-betting/2026-worldcup-prediction-market</a></li>
+        <li><a href="https://github.com/spfunctions/polymarket-sports-mm" target="_blank" rel="noreferrer">spfunctions/polymarket-sports-mm</a></li>
+      </ul>
+
+      <div class="footer">
+        本文档是给你后续做工具用的工作底稿，不是交易建议。交易前需要再核对 API 版本、费率和认证方式是否有变动。
+      </div>
+    </section>
+  </div>
+</body>
+</html>
