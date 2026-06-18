@@ -1,0 +1,691 @@
+/*
+ * 基座层:reset + 面板外壳 + 头部/工具栏 + 共享原子(可折叠区 / 徽章 / 分段控件 / 表单 / 按钮 / 开关)。
+ * 全部基于 tokens.css 的 --c-* / --t-* / --font-* / --pq-* 令牌。
+ * 这些 .pq-* 原子供 Header/AuthBar/SettingsBar(Phase 1)及后续 PositionRow/Ops(Phase 2/3)复用。
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 360px;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--font-sans);
+}
+
+body::-webkit-scrollbar {
+  width: 10px;
+}
+
+body::-webkit-scrollbar-track {
+  background: var(--c-bg);
+}
+
+body::-webkit-scrollbar-thumb {
+  border: 2px solid var(--c-bg);
+  border-radius: 999px;
+  background: var(--c-border);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+button:disabled,
+input:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+
+/* 等宽数字工具类 */
+.pq-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 面板外壳 ───────────────────────────── */
+.app {
+  min-height: 100vh;
+  background: var(--c-bg);
+}
+
+/* 无缝通栏:无间距、无横向留白,区块靠各自底边分隔线 + 背景明暗分层。 */
+.app__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  background: var(--c-bg);
+}
+
+/* 空状态 / 错误条 */
+.empty-state {
+  margin: 12px 15px;
+  border: 1px dashed var(--c-border);
+  border-radius: var(--pq-radius-card);
+  background: var(--c-cell);
+  color: var(--c-muted);
+  padding: 18px 14px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.error-banner {
+  margin: 10px 15px 0;
+  border: 1px solid var(--t-up-bd);
+  border-radius: var(--pq-radius-input);
+  background: var(--t-up-bg);
+  color: var(--c-up);
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* ── 头部 ───────────────────────────────── */
+.pq-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 13px 15px;
+  border-bottom: 1px solid var(--c-border);
+  background: var(--c-bg);
+}
+
+.pq-header__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pq-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.pq-brand__logo {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  background: var(--c-brand);
+  color: var(--c-brand-ink);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.pq-brand__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.pq-brand__name {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--c-text);
+  line-height: 1.1;
+}
+
+.pq-brand__sub {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  color: var(--c-muted2);
+  text-transform: uppercase;
+}
+
+.pq-header__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.pq-header__row2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pq-addr {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--c-muted2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* LIVE 指示(青点脉冲) */
+.pq-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--c-live);
+}
+
+.pq-live__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c-live);
+  animation: pq-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pq-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-live) 60%, transparent);
+  }
+  50% {
+    opacity: 0.55;
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+
+/* ── 徽章 / 状态药丸 ─────────────────────── */
+.pq-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid transparent;
+  border-radius: var(--pq-radius-badge);
+  padding: 2px 7px;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pq-pill--dry {
+  background: var(--t-up-bg);
+  border-color: var(--t-up-bd);
+  color: var(--c-up);
+}
+
+.pq-pill--live {
+  background: var(--t-down-bg);
+  border-color: var(--t-down-bd);
+  color: var(--c-down);
+}
+
+.pq-pill--ok {
+  background: var(--t-down-bg);
+  border-color: var(--t-down-bd);
+  color: var(--c-down);
+}
+
+.pq-pill--warn {
+  background: var(--t-up-bg);
+  border-color: var(--t-up-bd);
+  color: var(--c-up);
+}
+
+.pq-pill--blue {
+  background: var(--t-blue-bg);
+  border-color: var(--t-blue-bd);
+  color: var(--c-blue);
+}
+
+/* 监控中(绿) */
+.pq-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: var(--pq-radius-badge);
+  background: var(--t-down-bg);
+  padding: 2px 7px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--c-down);
+  white-space: nowrap;
+}
+
+.pq-status--off {
+  background: var(--t-up-bg);
+  color: var(--c-up);
+}
+
+.pq-status__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ── 工具栏 ─────────────────────────────── */
+.pq-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 15px;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-border-soft);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--c-muted2);
+}
+
+.pq-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pq-toolbar__time {
+  font-variant-numeric: tabular-nums;
+}
+
+.pq-toolbar__refresh {
+  flex: 0 0 auto;
+  border: 1px solid var(--c-border);
+  border-radius: var(--pq-radius-input);
+  background: transparent;
+  color: var(--c-text);
+  padding: 4px 9px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.pq-toolbar__refresh:hover {
+  border-color: var(--c-blue);
+  color: var(--c-blue);
+}
+
+/* ── 页脚 ───────────────────────────────── */
+.pq-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 15px;
+  background: var(--c-surface);
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.3px;
+  color: var(--c-muted2);
+}
+
+.pq-footer__ver {
+  flex: 0 0 auto;
+}
+
+/* ── 可折叠区(Auth / Settings 共享) ─────── */
+/* 通栏:不再是浮动圆角卡,只有底边分隔线 + body 背景分层 */
+.pq-section {
+  border-bottom: 1px solid var(--c-border);
+  background: var(--c-bg);
+}
+
+.pq-section__toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--c-text);
+  padding: 10px 15px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pq-section__toggle:hover {
+  background: var(--c-rowhover);
+}
+
+.pq-section__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pq-section__sub {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--c-down);
+  letter-spacing: 0.5px;
+}
+
+.pq-section__sub--warn {
+  color: var(--c-up);
+}
+
+.pq-section__chevron {
+  color: var(--c-muted2);
+  font-size: 11px;
+  transition: transform 160ms ease;
+}
+
+.pq-section__chevron--open {
+  transform: rotate(180deg);
+}
+
+.pq-section__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 13px 15px;
+  border-top: 1px solid var(--c-border-soft);
+  background: var(--c-surface);
+}
+
+/* ── 分段控件(语言 / 主题) ─────────────── */
+.pq-field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pq-label {
+  color: var(--c-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pq-seg {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--c-border);
+  border-radius: var(--pq-radius-input);
+  background: var(--c-cell);
+}
+
+.pq-seg--full {
+  display: flex;
+  width: 100%;
+}
+
+.pq-seg__btn {
+  flex: 1 1 0;
+  border: 0;
+  background: transparent;
+  color: var(--c-muted);
+  padding: 6px 11px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pq-seg__btn + .pq-seg__btn {
+  border-left: 1px solid var(--c-border);
+}
+
+.pq-seg__btn:hover {
+  color: var(--c-text);
+}
+
+.pq-seg__btn--active {
+  background: var(--c-track);
+  color: var(--c-text-strong);
+}
+
+/* ── 表单字段 / 输入 ─────────────────────── */
+.pq-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pq-field > span {
+  color: var(--c-muted);
+  font-size: 11px;
+}
+
+.pq-input {
+  width: 100%;
+  border: 1px solid var(--c-border);
+  border-radius: var(--pq-radius-input);
+  background: var(--c-cell);
+  color: var(--c-text);
+  outline: none;
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.pq-input::placeholder {
+  color: color-mix(in srgb, var(--c-muted) 70%, var(--c-bg));
+}
+
+.pq-input:focus {
+  border-color: var(--c-blue);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-blue) 26%, transparent);
+}
+
+.pq-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.pq-divider {
+  height: 1px;
+  margin: 2px 0;
+  border: 0;
+  background: var(--c-border-soft);
+}
+
+.pq-form-error {
+  margin: 0;
+  border: 1px solid var(--t-up-bd);
+  border-radius: var(--pq-radius-input);
+  background: var(--t-up-bg);
+  color: var(--c-up);
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.pq-strong {
+  color: var(--c-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* 开关 + 文字成组 */
+.pq-toggle-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--c-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ── 按钮 ───────────────────────────────── */
+.pq-btn {
+  border: 1px solid var(--c-border);
+  border-radius: var(--pq-radius-input);
+  background: var(--c-cell);
+  color: var(--c-text);
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pq-btn:hover {
+  border-color: var(--c-muted2);
+}
+
+.pq-btn--primary {
+  border-color: var(--c-blue);
+  background: var(--c-blue);
+  color: var(--c-on-accent);
+}
+
+.pq-btn--primary:hover {
+  border-color: var(--c-blue);
+  background: color-mix(in srgb, var(--c-blue) 86%, black);
+}
+
+.pq-btn--danger {
+  border-color: var(--t-up-bd);
+  background: var(--t-up-bg);
+  color: var(--c-up);
+}
+
+.pq-btn--danger:hover {
+  border-color: var(--c-up);
+}
+
+.pq-btn--block {
+  width: 100%;
+}
+
+/* ── 开关(模拟/实盘 等) ─────────────────── */
+.pq-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.pq-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.pq-switch__track {
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--c-track);
+  transition: background-color 160ms ease;
+}
+
+.pq-switch__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--c-knob);
+  transition: transform 160ms ease;
+}
+
+/* 开=模拟(红) */
+.pq-switch input:checked + .pq-switch__track {
+  background: var(--c-up);
+}
+
+.pq-switch input:checked ~ .pq-switch__knob {
+  transform: translateX(16px);
+}
+
+/* 实盘开关变体:开=绿 */
+.pq-switch--live input:checked + .pq-switch__track {
+  background: var(--c-down);
+}
+
+/* 中性开关变体(UI 偏好,如隐藏已结算):开=蓝灰 */
+.pq-switch--neutral input:checked + .pq-switch__track {
+  background: var(--c-muted2);
+}
+
+button:focus-visible,
+input:focus-visible,
+.pq-switch input:focus-visible + .pq-switch__track {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-blue) 26%, transparent);
+}
+
+/* ── 滑块(range,Chromium 目标,webkit 样式即可) ─── */
+.pq-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 3px;
+  background: var(--c-track);
+  outline: none;
+  cursor: pointer;
+}
+
+.pq-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--c-text-strong);
+  border: 2px solid var(--c-surface);
+  box-shadow: 0 0 0 1px var(--c-border);
+}
+
+.pq-range:disabled {
+  cursor: default;
+}
+
+/* ── Tab 切换 ───────────────────────────── */
+.pq-tabs {
+  display: flex;
+  gap: 6px;
+  border-radius: var(--pq-radius-input);
+  background: var(--c-cell);
+  padding: 3px;
+}
+
+.pq-tab {
+  flex: 1 1 0;
+  border: 0;
+  border-radius: calc(var(--pq-radius-input) - 1px);
+  background: transparent;
+  color: var(--c-muted);
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pq-tab:hover {
+  color: var(--c-text);
+}
+
+.pq-tab--active {
+  background: var(--c-track);
+  color: var(--c-text-strong);
+}

@@ -1,0 +1,160 @@
+/* 盘口 LOB(折叠买1/卖1 ↔ 完整 5 档) */
+.pq-lob {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pq-lob--empty {
+  border: 1px dashed var(--c-border);
+  border-radius: var(--pq-radius-input);
+  background: var(--c-cell);
+  color: var(--c-muted2);
+  padding: 10px;
+  text-align: center;
+  font-size: 11px;
+}
+
+.pq-lob__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: var(--c-muted2);
+}
+
+.pq-lob__hint {
+  color: var(--c-muted2);
+}
+
+
+/* 折叠态:买1 / 卖1 两格 */
+.pq-lob__top {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.pq-lob__cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  border: 1px solid var(--c-border);
+  border-radius: var(--pq-radius-input);
+  background: var(--c-cell);
+  padding: 7px 9px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* 深度条(背景填充);买右对齐、卖左对齐 */
+.pq-lob__depth {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 0;
+}
+
+.pq-lob__depth--bid {
+  right: 0;
+  background: var(--t-up-bg);
+}
+
+.pq-lob__depth--ask {
+  left: 0;
+  background: var(--t-down-bg);
+}
+
+.pq-lob__tag {
+  position: relative;
+  z-index: 1;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.pq-lob__tag--bid {
+  color: var(--c-up);
+}
+
+.pq-lob__tag--ask {
+  color: var(--c-down);
+}
+
+.pq-lob__price {
+  position: relative;
+  z-index: 1;
+  font-weight: 700;
+}
+
+.pq-lob__price--bid {
+  color: var(--c-up);
+}
+
+.pq-lob__price--ask {
+  color: var(--c-down);
+}
+
+.pq-lob__size {
+  position: relative;
+  z-index: 1;
+  margin-left: auto;
+  color: var(--c-muted);
+  font-size: 10px;
+}
+
+/* 展开态:左右两列 5 档(整块可点击折叠) */
+.pq-lob__full {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pq-lob__col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pq-lob__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.pq-lob__row--best {
+  border-color: var(--c-border);
+}
+
+.pq-lob__row--bid.pq-lob__row--best {
+  border-color: var(--t-up-bd);
+}
+
+.pq-lob__row--ask.pq-lob__row--best {
+  border-color: var(--t-down-bd);
+}
+
+.pq-lob__none {
+  color: var(--c-muted2);
+  font-size: 10px;
+  padding: 4px 8px;
+}

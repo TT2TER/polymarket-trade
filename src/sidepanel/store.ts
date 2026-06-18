@@ -1,9 +1,10 @@
 import { create } from 'zustand';
-import type { OpenOrder } from '@polymarket/clob-client';
+import type { OpenOrder } from '@polymarket/clob-client-v2';
 import type { DataSource, Snapshot } from '@/lib/datasource/types';
 import { roundDownShares, type PlaceSellResult } from '@/lib/trading/orders';
 import { StopLossMonitor, type StopLossMonitorStatuses, type StopLossTriggerDetails } from '@/lib/stoploss/monitor';
 import { WsSource } from '@/lib/datasource/wsSource';
+import { getTodayPnl } from '@/lib/api/userPnl';
 import { DEFAULT_CONFIG, readConfig, writeConfig, type AppConfig } from '@/shared/config';
 import { translate, type I18nKey } from '@/shared/i18n';
 import {
@@ -13,6 +14,7 @@ import {
   type StopLossConfigPatch,
   type StopLossConfigs,
 } from '@/shared/stopLossConfig';
+import { readTargetMultipliers, writeTargetMultipliers, type TargetMultipliers } from '@/shared/targetMultipliers';
 import type {
   AuthStatusResponse,
   ErrorResponse,
@@ -34,6 +36,8 @@ interface MonitorStore {
   config: AppConfig;
   stopLossConfigs: StopLossConfigs;
   stopLossStatuses: StopLossStatuses;
+  targetMultipliers: TargetMultipliers;
+  todayPnl: number | null;
   snapshot: Snapshot | null;
   openOrders: Record<string, OpenOrder[]>;
   orderErrors: Record<string, string | null>;
@@ -43,6 +47,9 @@ interface MonitorStore {
   setConfig: (config: AppConfig) => Promise<void>;
   loadConfig: () => Promise<void>;
   loadStopLossConfigs: () => Promise<void>;
+  loadTargetMultipliers: () => Promise<void>;
+  setTargetMultiplier: (asset: string, n: number) => void;
+  fetchTodayPnl: () => Promise<void>;
   armStopLoss: (asset: string, params?: StopLossConfigPatch) => Promise<void>;
   disarmStopLoss: (asset: string) => Promise<void>;
   setStopLossParams: (asset: string, params: StopLossConfigPatch) => Promise<void>;
@@ -78,6 +85,8 @@ let activeSource: DataSource | null = null;
 let activeUnsubscribe: (() => void) | null = null;
 let activeStopLossMonitor: StopLossMonitor | null = null;
 let monitoringActive = false;
+// 目标倍数 N 的 debounce 落盘计时器(拖动停止 ~500ms 后写一次,不打爆 storage)。
+let targetMultipliersTimer: ReturnType<typeof setTimeout> | null = null;
 
 function stopActiveSource(): void {
   activeUnsubscribe?.();
@@ -165,6 +174,8 @@ const monitorStore = create<MonitorStore>((set, get) => ({
   config: DEFAULT_CONFIG,
   stopLossConfigs: {},
   stopLossStatuses: {},
+  targetMultipliers: {},
+  todayPnl: null,
   snapshot: null,
   openOrders: {},
   orderErrors: {},
@@ -200,6 +211,43 @@ const monitorStore = create<MonitorStore>((set, get) => ({
         snapshot: errorSnapshot(translate(get().config.lang, 'stopLoss.configLoadFailed', { message })),
         isLoading: false,
       });
+    }
+  },
+
+  loadTargetMultipliers: async () => {
+    try {
+      set({ targetMultipliers: await readTargetMultipliers() });
+    } catch {
+      // 非关键偏好,读失败就用空映射(各仓回退默认倍数)。
+      set({ targetMultipliers: {} });
+    }
+  },
+
+  // 每仓目标倍数:即时更新内存(供进度条/滑块实时联动),debounce 落盘。绝不走 setConfig(不重连 WS)。
+  setTargetMultiplier: (asset: string, n: number) => {
+    if (!Number.isFinite(n) || n <= 0) {
+      return;
+    }
+    set((state) => ({ targetMultipliers: { ...state.targetMultipliers, [asset]: n } }));
+    if (targetMultipliersTimer) {
+      clearTimeout(targetMultipliersTimer);
+    }
+    targetMultipliersTimer = setTimeout(() => {
+      void writeTargetMultipliers(get().targetMultipliers);
+    }, 500);
+  },
+
+  // 汇总条「今日」:低频拉取滚动 24h P&L,与 WS 行情解耦;失败静默(非关键)。
+  fetchTodayPnl: async () => {
+    const address = get().config.address;
+    if (!address || !get().config.showSummary) {
+      return;
+    }
+    try {
+      const pnl = await getTodayPnl(address);
+      set({ todayPnl: pnl });
+    } catch {
+      // 网络/接口波动不影响主功能,保留上次值。
     }
   },
 

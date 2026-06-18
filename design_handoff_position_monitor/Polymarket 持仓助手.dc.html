@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  @keyframes pq-pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+  [data-pqtheme="dark"]{--c-bg:#0b0e11;--c-surface:#0d1116;--c-cell:#12161c;--c-card:#161a1e;--c-track:#1e2329;--c-border:#2b3139;--c-border-soft:#1c222a;--c-text:#eaecef;--c-text-strong:#e6e9ef;--c-muted:#9aa3af;--c-muted2:#5e6673;--c-up:#f6465d;--c-down:#0ecb81;--c-target:#f0b90b;--c-blue:#4fa8f5;--c-live:#2dd4bf;--c-on-accent:#0b0e11;--t-up-bg:rgba(246,70,93,.12);--t-up-bd:rgba(246,70,93,.32);--t-down-bg:rgba(14,203,129,.12);--t-down-bd:rgba(14,203,129,.32);--t-target-bg:rgba(240,185,11,.10);--t-target-bd:rgba(240,185,11,.26);--t-blue-bg:rgba(79,168,245,.12);--t-blue-bd:rgba(79,168,245,.30);--c-shadow:rgba(0,0,0,.2);--c-rowhover:#10151b;}
+  [data-pqtheme="light"]{--c-bg:#ffffff;--c-surface:#f4f6f8;--c-cell:#fafbfc;--c-card:#ffffff;--c-track:#e7e9ee;--c-border:#dfe2e8;--c-border-soft:#eceef2;--c-text:#141821;--c-text-strong:#0d1016;--c-muted:#5d6470;--c-muted2:#9aa0ab;--c-up:#dc2640;--c-down:#06a368;--c-target:#b07d00;--c-blue:#2f86d8;--c-live:#0d9488;--c-on-accent:#ffffff;--t-up-bg:rgba(220,38,64,.09);--t-up-bd:rgba(220,38,64,.28);--t-down-bg:rgba(6,163,104,.10);--t-down-bd:rgba(6,163,104,.30);--t-target-bg:rgba(176,125,0,.12);--t-target-bd:rgba(176,125,0,.30);--t-blue-bg:rgba(47,134,216,.10);--t-blue-bd:rgba(47,134,216,.30);--c-shadow:rgba(15,23,42,.12);--c-rowhover:#eef1f5;}
+  .pq-row:hover{background:var(--c-rowhover,#10151b);}
+  .pq-in{width:100%;background:var(--c-cell);border:1px solid var(--c-border);border-radius:6px;padding:8px 10px;color:var(--c-text);font:500 11px/1 'IBM Plex Mono';outline:none;}
+  .pq-in:focus{border-color:var(--c-blue);}
+</style>
+</helmet>
+
+<div data-pqtheme="{{ pqTheme }}" style="min-height:100vh;background:#e7e5df;padding:44px;font-family:'Archivo',sans-serif;display:flex;gap:40px;align-items:flex-start;">
+
+  <div style="flex:none;width:420px;">
+    <div style="font:600 11px/1 'IBM Plex Mono';letter-spacing:1px;color:#6a6f76;text-transform:uppercase;margin-bottom:12px;">侧边栏 · {{ themeLabel }}</div>
+
+    <div style="background:var(--c-bg,#0b0e11);border:1px solid var(--c-border,#2b3139);border-radius:12px;overflow:hidden;box-shadow:0 14px 44px var(--c-shadow,rgba(0,0,0,.2));">
+
+      <!-- header -->
+      <div style="padding:13px 15px;border-bottom:1px solid var(--c-border,#2b3139);">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;align-items:center;gap:9px;">
+            <div style="width:26px;height:26px;border-radius:6px;background:#f0b90b;display:flex;align-items:center;justify-content:center;font:800 14px/1 'Archivo';color:#0b0e11;">P</div>
+            <div>
+              <div style="font:700 13px/1 'IBM Plex Mono';letter-spacing:.5px;color:var(--c-text,#eaecef);">POLYQUANT</div>
+              <div style="font:500 8px/1.4 'IBM Plex Mono';letter-spacing:1px;color:var(--c-muted2,#5e6673);margin-top:2px;">持仓监控 · POSITIONS</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px;">
+            <span style="font:600 8.5px/1 'IBM Plex Mono';letter-spacing:.5px;color:{{ modeColor }};background:{{ modeBg }};border:1px solid {{ modeBorder }};border-radius:5px;padding:5px 7px;">{{ modeText }}</span>
+            <span style="display:flex;align-items:center;gap:5px;font:600 8.5px/1 'IBM Plex Mono';color:var(--c-live,#2dd4bf);">
+              <span style="width:6px;height:6px;border-radius:50%;background:var(--c-live,#2dd4bf);display:inline-block;animation:pq-pulse 1.6s infinite;"></span>LIVE
+            </span>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:11px;">
+          <span style="font:400 10px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);">0x7a3f…9c21</span>
+          <span style="font:600 8.5px/1 'IBM Plex Mono';letter-spacing:.5px;color:var(--c-down,#0ecb81);background:var(--t-down-bg,rgba(14,203,129,.1));border-radius:4px;padding:4px 7px;">● 监控中</span>
+        </div>
+      </div>
+
+      <!-- equity summary -->
+      <sc-if value="{{ showSummary }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;border-bottom:1px solid var(--c-border,#2b3139);background:var(--c-surface,#0d1116);">
+        <div style="flex:1;padding:11px 14px;border-right:1px solid var(--c-border-soft,#1c222a);">
+          <div style="font:500 8px/1 'IBM Plex Mono';letter-spacing:.8px;color:var(--c-muted2,#5e6673);margin-bottom:6px;">总持仓价值</div>
+          <div style="font:600 16px/1 'IBM Plex Mono';color:var(--c-text,#eaecef);">$2,668</div>
+        </div>
+        <div style="flex:1;padding:11px 14px;border-right:1px solid var(--c-border-soft,#1c222a);">
+          <div style="font:500 8px/1 'IBM Plex Mono';letter-spacing:.8px;color:var(--c-muted2,#5e6673);margin-bottom:6px;">今日</div>
+          <div style="font:600 16px/1 'IBM Plex Mono';color:var(--c-up,#f6465d);">+$312</div>
+        </div>
+        <div style="flex:1;padding:11px 14px;">
+          <div style="font:500 8px/1 'IBM Plex Mono';letter-spacing:.8px;color:var(--c-muted2,#5e6673);margin-bottom:6px;">未实现盈亏</div>
+          <div style="font:600 16px/1 'IBM Plex Mono';color:var(--c-up,#f6465d);">+$646</div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ===== AUTH BAR ===== -->
+      <div onClick="{{ toggleAuth }}" style="display:flex;justify-content:space-between;align-items:center;padding:9px 15px;border-bottom:1px solid var(--c-border-soft,#1c222a);cursor:pointer;" class="pq-row">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font:600 10px/1 'Archivo';color:var(--c-text,#eaecef);">交易访问</span>
+          <span style="font:500 8.5px/1 'IBM Plex Mono';color:var(--c-down,#0ecb81);">已解锁 · CLOB 就绪</span>
+        </div>
+        <span style="color:var(--c-muted2,#5e6673);font-size:11px;{{ authChev }}">▾</span>
+      </div>
+      <sc-if value="{{ authOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:13px 15px;border-bottom:1px solid var(--c-border,#2b3139);background:var(--c-surface,#0d1116);">
+        <div style="display:flex;align-items:center;gap:9px;padding:10px 12px;background:var(--t-down-bg,rgba(14,203,129,.1));border:1px solid var(--t-down-bd,rgba(14,203,129,.3));border-radius:8px;">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--c-down,#0ecb81);display:flex;align-items:center;justify-content:center;font:700 12px/1 'Archivo';color:var(--c-on-accent,#0b0e11);flex:none;">✓</div>
+          <div>
+            <div style="font:600 11px/1 'Archivo';color:var(--c-down,#0ecb81);">交易已启用</div>
+            <div style="font:400 8px/1.3 'IBM Plex Mono';color:var(--c-muted,#9aa3af);margin-top:3px;">CLOB auth ready · 私钥已派生凭据</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px;">
+          <div style="padding:8px 10px;background:var(--c-cell,#12161c);border:1px solid var(--c-border-soft,#1c222a);border-radius:6px;">
+            <div style="font:500 7.5px/1 'IBM Plex Mono';letter-spacing:.5px;color:var(--c-muted2,#5e6673);margin-bottom:5px;">SIGNER (EOA)</div>
+            <div style="font:600 10px/1 'IBM Plex Mono';color:var(--c-text,#eaecef);">0x4b3c…e2a1</div>
+          </div>
+          <div style="padding:8px 10px;background:var(--c-cell,#12161c);border:1px solid var(--c-border-soft,#1c222a);border-radius:6px;">
+            <div style="font:500 7.5px/1 'IBM Plex Mono';letter-spacing:.5px;color:var(--c-muted2,#5e6673);margin-bottom:5px;">代理钱包</div>
+            <div style="font:600 10px/1 'IBM Plex Mono';color:var(--c-text,#eaecef);">0x7a3f…9c21</div>
+          </div>
+        </div>
+        <div style="font:400 8px/1.4 'IBM Plex Mono';color:var(--c-muted2,#5e6673);margin-top:7px;">Signer 由密钥派生 · ≠ 代理钱包地址(代理模式正常)</div>
+        <div style="display:flex;gap:8px;margin-top:11px;">
+          <button style="flex:1;font:600 10px/1 'Archivo';color:var(--c-muted,#9aa3af);background:transparent;border:1px solid var(--c-border,#2b3139);border-radius:6px;padding:9px;cursor:pointer;">🔒 锁定</button>
+          <button style="flex:1;font:600 10px/1 'Archivo';color:var(--c-up,#f6465d);background:transparent;border:1px solid var(--t-up-bd,rgba(246,70,93,.3));border-radius:6px;padding:9px;cursor:pointer;">忘记密钥</button>
+        </div>
+        <div style="font:400 7.5px/1.4 'IBM Plex Mono';color:var(--c-muted2,#5e6673);margin-top:9px;">🛡 私钥 PBKDF2+AES-GCM 本地加密 · 会话级解锁 · 绝不上传</div>
+      </div>
+      </sc-if>
+
+      <!-- ===== SETTINGS BAR ===== -->
+      <div onClick="{{ toggleSettings }}" style="display:flex;justify-content:space-between;align-items:center;padding:9px 15px;border-bottom:1px solid var(--c-border,#2b3139);cursor:pointer;" class="pq-row">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font:600 10px/1 'Archivo';color:var(--c-text,#eaecef);">设置</span>
+          <span style="font:600 7.5px/1 'IBM Plex Mono';letter-spacing:.5px;color:{{ modeColor }};background:{{ modeBg }};border-radius:3px;padding:3px 5px;">{{ modeText }}</span>
+        </div>
+        <span style="color:var(--c-muted2,#5e6673);font-size:11px;{{ settingsChev }}">▾</span>
+      </div>
+      <sc-if value="{{ settingsOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:13px 15px;border-bottom:1px solid var(--c-border,#2b3139);background:var(--c-surface,#0d1116);">
+
+        <div style="font:600 8px/1 'IBM Plex Mono';letter-spacing:.6px;color:var(--c-muted2,#5e6673);margin-bottom:6px;">代理钱包地址</div>
+        <input class="pq-in" value="0x7a3f29b8c4d1e6a05f8b2c7d9e0a1b3c4d5e9c21" readonly="readonly"/>
+
+        <div style="font:600 8px/1 'IBM Plex Mono';letter-spacing:.6px;color:var(--c-muted2,#5e6673);margin:12px 0 6px;">主题</div>
+        <div style="display:flex;gap:4px;background:var(--c-bg,#0b0e11);border:1px solid var(--c-border-soft,#1c222a);border-radius:7px;padding:3px;">
+          <div onClick="{{ setThemeSystem }}" style="{{ segSystem }}">跟随系统</div>
+          <div onClick="{{ setThemeDark }}" style="{{ segDark }}">深色</div>
+          <div onClick="{{ setThemeLight }}" style="{{ segLight }}">浅色</div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:12px;">
+          <div style="flex:1;">
+            <div style="font:600 8px/1 'IBM Plex Mono';letter-spacing:.6px;color:var(--c-muted2,#5e6673);margin-bottom:6px;">语言</div>
+            <div style="display:flex;gap:4px;background:var(--c-bg,#0b0e11);border:1px solid var(--c-border-soft,#1c222a);border-radius:7px;padding:3px;">
+              <div onClick="{{ setLangZh }}" style="{{ segZh }}">中文</div>
+              <div onClick="{{ setLangEn }}" style="{{ segEn }}">EN</div>
+            </div>
+          </div>
+          <div style="flex:1;">
+            <div style="font:600 8px/1 'IBM Plex Mono';letter-spacing:.6px;color:var(--c-muted2,#5e6673);margin-bottom:6px;">隐藏已结算</div>
+            <div onClick="{{ toggleHide }}" style="display:flex;align-items:center;gap:8px;height:33px;cursor:pointer;">
+              <div style="{{ hideToggleStyle }}"><div style="width:15px;height:15px;border-radius:50%;background:#fff;"></div></div>
+              <span style="font:500 9.5px/1 'IBM Plex Mono';color:var(--c-muted,#9aa3af);">{{ hideText }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:1px;background:var(--c-border-soft,#1c222a);margin:13px 0;"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.5px;color:var(--c-muted,#9aa3af);">交易设置</span>
+          <div onClick="{{ toggleDry }}" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <span style="font:500 9px/1 'IBM Plex Mono';color:{{ modeColor }};">{{ dryLabel }}</span>
+            <div style="{{ dryToggleStyle }}"><div style="width:15px;height:15px;border-radius:50%;background:#fff;"></div></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <div style="flex:1;">
+            <div style="font:600 8px/1 'IBM Plex Mono';letter-spacing:.6px;color:var(--c-muted2,#5e6673);margin-bottom:6px;">最大订单 USD</div>
+            <input class="pq-in" value="500" readonly="readonly"/>
+          </div>
+          <div style="flex:1;">
+            <div style="font:600 8px/1 'IBM Plex Mono';letter-spacing:.6px;color:var(--c-muted2,#5e6673);margin-bottom:6px;">止损最大 USD</div>
+            <input class="pq-in" value="200" readonly="readonly"/>
+          </div>
+        </div>
+
+        <button style="width:100%;margin-top:13px;font:600 11px/1 'Archivo';color:var(--c-on-accent,#0b0e11);background:var(--c-blue,#4fa8f5);border:none;border-radius:7px;padding:10px;cursor:pointer;">保存设置</button>
+      </div>
+      </sc-if>
+
+      <!-- toolbar -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 15px;background:var(--c-surface,#0d1116);border-bottom:1px solid var(--c-border-soft,#1c222a);">
+        <span style="font:600 8.5px/1 'IBM Plex Mono';letter-spacing:.5px;color:var(--c-muted2,#5e6673);">快照就绪</span>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font:400 8.5px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);">14:32:07</span>
+          <span style="font:600 8.5px/1 'IBM Plex Mono';color:var(--c-muted,#9aa3af);">↻ 刷新</span>
+        </div>
+      </div>
+
+      <!-- ===================== EVENT: WORLD CUP ===================== -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 15px;background:var(--c-surface,#0d1116);">
+        <span style="font:700 9.5px/1 'IBM Plex Mono';letter-spacing:.5px;color:var(--c-muted,#9aa3af);text-transform:uppercase;">2026 World Cup · Winner</span>
+        <span style="font:500 8.5px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);">2 个持仓</span>
+      </div>
+
+      <!-- ROW: France -->
+      <div style="border-bottom:1px solid var(--c-border,#2b3139);background:{{ franceBg }};">
+        <div onClick="{{ toggleFrance }}" class="pq-row" style="padding:11px 15px;cursor:pointer;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
+            <div style="display:flex;align-items:center;gap:7px;min-width:0;">
+              <span style="font:600 8.5px/1 'IBM Plex Mono';color:var(--c-up,#f6465d);background:var(--t-up-bg,rgba(246,70,93,.12));border:1px solid var(--t-up-bd,rgba(246,70,93,.3));padding:3px 4px;border-radius:3px;flex:none;">YES</span>
+              <span style="font:500 12.5px/1.2 'Archivo';color:var(--c-text,#eaecef);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">France to win World Cup</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;flex:none;">
+              <span style="font:600 13px/1 'IBM Plex Mono';color:var(--c-up,#f6465d);">+100%</span>
+              <span style="font-size:9px;color:var(--c-muted2,#5e6673);{{ franceChev }}">▼</span>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px;font:400 10px/1 'IBM Plex Mono';color:var(--c-muted,#9aa3af);">
+            <span>3,000 @ 19¢ → <span style="color:var(--c-text-strong,#e6e9ef);">38¢</span></span>
+            <span>$1,140 · <span style="color:var(--c-up,#f6465d);">+$570</span></span>
+          </div>
+          <div style="margin-top:9px;position:relative;height:5px;background:var(--c-track,#1e2329);border-radius:3px;">
+            <div style="position:absolute;left:0;top:0;height:100%;width:{{ franceFill }};background:{{ franceLadColor }};border-radius:3px;"></div>
+            <sc-if value="{{ franceShow2x }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;left:{{ francePos2x }};top:-2px;width:1.5px;height:9px;background:var(--c-target,#f0b90b);"></div>
+            </sc-if>
+            <div style="position:absolute;left:{{ franceFill }};top:50%;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:50%;background:{{ franceLadColor }};box-shadow:0 0 0 2px var(--c-bg,#0b0e11);"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:5px;font:500 8.5px/1 'IBM Plex Mono';">
+            <span style="color:var(--c-muted2,#5e6673);">IN {{ franceEntryC }}</span><span style="color:var(--c-target,#f0b90b);">目标 {{ franceN }}× {{ franceTargetC }}</span>
+          </div>
+        </div>
+        <sc-if value="{{ openFrance }}" hint-placeholder-val="{{ false }}">
+          <dc-import name="PositionOps" size="3000" avg="0.19" cur="0.38" best-bid="0.38" best-ask="0.39" prob="38" sl-armed="false" n="{{ franceN }}" on-n-change="{{ setFranceN }}" hint-size="100%,560px"></dc-import>
+        </sc-if>
+      </div>
+
+      <!-- ROW: Brazil -->
+      <div style="border-bottom:1px solid var(--c-border,#2b3139);">
+        <div onClick="{{ toggleBrazil }}" class="pq-row" style="padding:11px 15px;cursor:pointer;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
+            <div style="display:flex;align-items:center;gap:7px;min-width:0;">
+              <span style="font:600 8.5px/1 'IBM Plex Mono';color:var(--c-up,#f6465d);background:var(--t-up-bg,rgba(246,70,93,.12));border:1px solid var(--t-up-bd,rgba(246,70,93,.3));padding:3px 4px;border-radius:3px;flex:none;">YES</span>
+              <span style="font:500 12.5px/1.2 'Archivo';color:var(--c-text,#eaecef);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Brazil to win World Cup</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;flex:none;">
+              <span style="font:600 13px/1 'IBM Plex Mono';color:var(--c-up,#f6465d);">+46.4%</span>
+              <span style="font-size:9px;color:var(--c-muted2,#5e6673);{{ brazilChev }}">▼</span>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px;font:400 10px/1 'IBM Plex Mono';color:var(--c-muted,#9aa3af);">
+            <span>1,200 @ 28¢ → <span style="color:var(--c-text-strong,#e6e9ef);">41¢</span></span>
+            <span>$492 · <span style="color:var(--c-up,#f6465d);">+$156</span></span>
+          </div>
+          <div style="margin-top:9px;position:relative;height:5px;background:var(--c-track,#1e2329);border-radius:3px;">
+            <div style="position:absolute;left:0;top:0;height:100%;width:{{ brazilFill }};background:{{ brazilLadColor }};border-radius:3px;"></div>
+            <sc-if value="{{ brazilShow2x }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;left:{{ brazilPos2x }};top:-2px;width:1.5px;height:9px;background:var(--c-target,#f0b90b);"></div>
+            </sc-if>
+            <div style="position:absolute;left:{{ brazilFill }};top:50%;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:50%;background:{{ brazilLadColor }};box-shadow:0 0 0 2px var(--c-bg,#0b0e11);"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:5px;font:500 8.5px/1 'IBM Plex Mono';">
+            <span style="color:var(--c-muted2,#5e6673);">IN {{ brazilEntryC }}</span><span style="color:var(--c-target,#f0b90b);">目标 {{ brazilN }}× {{ brazilTargetC }}</span>
+          </div>
+        </div>
+        <sc-if value="{{ openBrazil }}" hint-placeholder-val="{{ false }}">
+          <dc-import name="PositionOps" size="1200" avg="0.28" cur="0.41" best-bid="0.41" best-ask="0.42" prob="41" sl-armed="false" n="{{ brazilN }}" on-n-change="{{ setBrazilN }}" hint-size="100%,560px"></dc-import>
+        </sc-if>
+      </div>
+
+      <!-- ===================== EVENT: LAKERS ===================== -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 15px;background:var(--c-surface,#0d1116);">
+        <span style="font:700 9.5px/1 'IBM Plex Mono';letter-spacing:.5px;color:var(--c-muted,#9aa3af);text-transform:uppercase;">Lakers vs Celtics · Tonight</span>
+        <span style="font:500 8.5px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);">1 个持仓</span>
+      </div>
+
+      <!-- ROW: Lakers -->
+      <div style="border-bottom:1px solid var(--c-border,#2b3139);">
+        <div onClick="{{ toggleLakers }}" class="pq-row" style="padding:11px 15px;cursor:pointer;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
+            <div style="display:flex;align-items:center;gap:7px;min-width:0;">
+              <span style="font:600 8.5px/1 'IBM Plex Mono';color:var(--c-down,#0ecb81);background:var(--t-down-bg,rgba(14,203,129,.12));border:1px solid var(--t-down-bd,rgba(14,203,129,.3));padding:3px 4px;border-radius:3px;flex:none;">YES</span>
+              <span style="font:500 12.5px/1.2 'Archivo';color:var(--c-text,#eaecef);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Lakers beat Celtics ML</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;flex:none;">
+              <span style="font:600 13px/1 'IBM Plex Mono';color:var(--c-down,#0ecb81);">−9.6%</span>
+              <span style="font-size:9px;color:var(--c-muted2,#5e6673);{{ lakersChev }}">▼</span>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px;font:400 10px/1 'IBM Plex Mono';color:var(--c-muted,#9aa3af);">
+            <span>800 @ 52¢ → <span style="color:var(--c-text-strong,#e6e9ef);">47¢</span></span>
+            <span>$376 · <span style="color:var(--c-down,#0ecb81);">−$40</span></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:8px;">
+            <span style="font:600 8px/1 'IBM Plex Mono';color:var(--c-down,#0ecb81);background:var(--t-down-bg,rgba(14,203,129,.1));border:1px solid var(--t-down-bd,rgba(14,203,129,.3));border-radius:4px;padding:3px 6px;">⛨ 止损已武装 · 30s/−12% → 卖50%</span>
+          </div>
+        </div>
+        <sc-if value="{{ openLakers }}" hint-placeholder-val="{{ false }}">
+          <dc-import name="PositionOps" size="800" avg="0.52" cur="0.47" best-bid="0.47" best-ask="0.48" prob="47" sl-armed="true" n="{{ lakersN }}" on-n-change="{{ setLakersN }}" hint-size="100%,560px"></dc-import>
+        </sc-if>
+      </div>
+
+      <!-- ===================== EVENT: ARG MEX ===================== -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 15px;background:var(--c-surface,#0d1116);">
+        <span style="font:700 9.5px/1 'IBM Plex Mono';letter-spacing:.5px;color:var(--c-muted,#9aa3af);text-transform:uppercase;">Argentina vs Mexico</span>
+        <span style="font:500 8.5px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);">1 个持仓</span>
+      </div>
+
+      <!-- ROW: Over -->
+      <div style="border-bottom:1px solid var(--c-border,#2b3139);">
+        <div onClick="{{ toggleOver }}" class="pq-row" style="padding:11px 15px;cursor:pointer;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
+            <div style="display:flex;align-items:center;gap:7px;min-width:0;">
+              <span style="font:600 8.5px/1 'IBM Plex Mono';color:var(--c-down,#0ecb81);background:var(--t-down-bg,rgba(14,203,129,.12));border:1px solid var(--t-down-bd,rgba(14,203,129,.3));padding:3px 4px;border-radius:3px;flex:none;">NO</span>
+              <span style="font:500 12.5px/1.2 'Archivo';color:var(--c-text,#eaecef);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Over 2.5 Goals</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;flex:none;">
+              <span style="font:600 13px/1 'IBM Plex Mono';color:var(--c-down,#0ecb81);">−5.7%</span>
+              <span style="font-size:9px;color:var(--c-muted2,#5e6673);{{ overChev }}">▼</span>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px;font:400 10px/1 'IBM Plex Mono';color:var(--c-muted,#9aa3af);">
+            <span>2,000 @ 35¢ → <span style="color:var(--c-text-strong,#e6e9ef);">33¢</span></span>
+            <span>$660 · <span style="color:var(--c-down,#0ecb81);">−$40</span></span>
+          </div>
+          <div style="margin-top:9px;position:relative;height:5px;background:var(--c-track,#1e2329);border-radius:3px;">
+            <div style="position:absolute;left:0;top:0;height:100%;width:{{ overFill }};background:{{ overLadColor }};border-radius:3px;opacity:.6;"></div>
+            <sc-if value="{{ overShow2x }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;left:{{ overPos2x }};top:-2px;width:1.5px;height:9px;background:var(--c-target,#f0b90b);"></div>
+            </sc-if>
+            <div style="position:absolute;left:{{ overFill }};top:50%;transform:translate(-50%,-50%);width:8px;height:8px;border-radius:50%;background:{{ overLadColor }};box-shadow:0 0 0 2px var(--c-bg,#0b0e11);"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:5px;font:500 8.5px/1 'IBM Plex Mono';">
+            <span style="color:var(--c-muted2,#5e6673);">IN {{ overEntryC }}</span><span style="color:var(--c-target,#f0b90b);">目标 {{ overN }}× {{ overTargetC }}</span>
+          </div>
+        </div>
+        <sc-if value="{{ openOver }}" hint-placeholder-val="{{ false }}">
+          <dc-import name="PositionOps" size="2000" avg="0.35" cur="0.33" best-bid="0.33" best-ask="0.34" prob="33" sl-armed="false" n="{{ overN }}" on-n-change="{{ setOverN }}" hint-size="100%,560px"></dc-import>
+        </sc-if>
+      </div>
+
+      <!-- ===================== SETTLED ===================== -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 15px;background:var(--c-surface,#0d1116);">
+        <span style="font:700 9.5px/1 'IBM Plex Mono';letter-spacing:.5px;color:var(--c-muted,#9aa3af);text-transform:uppercase;">Champions League · Winner</span>
+        <span style="font:500 8.5px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);">已结算</span>
+      </div>
+
+      <div style="padding:12px 15px;border-bottom:1px solid var(--c-border,#2b3139);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <div style="display:flex;align-items:center;gap:7px;min-width:0;">
+            <span style="font:600 8.5px/1 'IBM Plex Mono';color:var(--c-muted,#9aa3af);background:var(--c-track,#1e2329);border:1px solid var(--c-border,#2b3139);padding:3px 4px;border-radius:3px;flex:none;">YES</span>
+            <span style="font:500 12.5px/1.2 'Archivo';color:var(--c-muted,#9aa3af);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Real Madrid win UCL</span>
+          </div>
+          <span style="font:600 8px/1 'IBM Plex Mono';color:var(--c-blue,#4fa8f5);background:var(--t-blue-bg,rgba(79,168,245,.1));border:1px solid var(--t-blue-bd,rgba(79,168,245,.28));padding:3px 5px;border-radius:4px;flex:none;">已结算 · 可赎回</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+          <span style="font:400 10px/1 'IBM Plex Mono';color:var(--c-muted,#9aa3af);">1,500 股 @ 44¢ · 现金盈亏 <span style="color:var(--c-up,#f6465d);">+$210 / +31.8%</span></span>
+          <span style="font:600 9px/1 'IBM Plex Mono';color:var(--c-blue,#4fa8f5);">在 Polymarket 赎回 ↗</span>
+        </div>
+      </div>
+
+      <!-- footer -->
+      <div style="padding:11px 15px;display:flex;justify-content:space-between;align-items:center;background:var(--c-surface,#0d1116);">
+        <span style="font:500 8.5px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);">⚠ 止损仅在侧边栏打开时运行</span>
+        <span style="font:600 8.5px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);">v1.0 · MV3</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- annotations -->
+  <div style="flex:none;width:300px;padding-top:34px;">
+    <div style="font:700 14px/1.3 'Archivo';color:#1a1d21;margin-bottom:16px;">交互说明</div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="background:#fff;border:1px solid #d9d6ce;border-radius:8px;padding:13px 14px;">
+        <div style="font:700 10px/1 'IBM Plex Mono';letter-spacing:.5px;color:#c0392b;margin-bottom:7px;">折叠态 · 密集流</div>
+        <div style="font:400 12px/1.5 'Archivo';color:#4a4f56;">一屏纵览所有持仓,按事件分组。每行:盈亏%、份额@均价→现价、持仓价值,以及 <b>入场 → 目标倍数</b> 进度条。</div>
+      </div>
+      <div style="background:#fff;border:1px solid #d9d6ce;border-radius:8px;padding:13px 14px;">
+        <div style="font:700 10px/1 'IBM Plex Mono';letter-spacing:.5px;color:#1a1d21;margin-bottom:7px;">点击展开 · 操作区</div>
+        <div style="font:400 12px/1.5 'Archivo';color:#4a4f56;">盘口、挂单常驻,<b>交易 / 止损</b> 标签切换。卖出数量、目标倍数、止损参数都用<b>滑块</b>实时联动。</div>
+      </div>
+      <div style="background:#fff;border:1px solid #d9d6ce;border-radius:8px;padding:13px 14px;">
+        <div style="font:700 10px/1 'IBM Plex Mono';letter-spacing:.5px;color:#2f86d8;margin-bottom:7px;">深 / 浅主题</div>
+        <div style="font:400 12px/1.5 'Archivo';color:#4a4f56;">展开<b>设置</b>,在「主题」里切换 <b>深色 / 浅色</b>,整个面板实时换肤。</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;tradingMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;模拟&quot;,&quot;实盘&quot;],&quot;default&quot;:&quot;模拟&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;深色&quot;,&quot;浅色&quot;],&quot;default&quot;:&quot;深色&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;showSummary&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = {
+    open: 'france',
+    authOpen: true,
+    settingsOpen: true,
+    themeMode: 'dark',
+    theme: 'dark',
+    lang: 'zh',
+    hideSettled: false,
+    dryRun: true,
+    nByAsset: { france: 2, brazil: 2, lakers: 2, over: 2 },
+  };
+
+  componentDidMount() {
+    const t = this.props.theme === '浅色' ? 'light' : this.props.theme === '深色' ? 'dark' : null;
+    if (t) this.setState({ theme: t, themeMode: t });
+    if (this.props.tradingMode != null) this.setState({ dryRun: this.props.tradingMode !== '实盘' });
+  }
+
+  renderVals() {
+    const open = this.state.open;
+    const toggle = (k) => () => this.setState({ open: this.state.open === k ? null : k });
+    const chev = (k) => (open === k ? 'display:inline-block;transform:rotate(180deg);' : 'display:inline-block;');
+
+    // theme
+    const theme = this.state.theme;
+    const setTheme = (mode) => () => {
+      let resolved = mode;
+      if (mode === 'system') {
+        resolved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      }
+      this.setState({ themeMode: mode, theme: resolved });
+    };
+    const seg = (active) =>
+      `flex:1;text-align:center;font:600 9.5px/1 'IBM Plex Mono';padding:7px 0;border-radius:5px;cursor:pointer;background:${active ? 'var(--c-track,#1e2329)' : 'transparent'};color:${active ? 'var(--c-text,#eaecef)' : 'var(--c-muted2,#5e6673)'};`;
+    const tm = this.state.themeMode;
+
+    // dry-run / mode badge
+    const isDry = this.state.dryRun;
+    const lang = this.state.lang;
+    const hide = this.state.hideSettled;
+    const onToggle = (active, accent) =>
+      `width:34px;height:20px;border-radius:11px;padding:2.5px;display:flex;${active ? `justify-content:flex-end;background:${accent};` : 'justify-content:flex-start;background:var(--c-track,#262d36);'}`;
+
+    // 目标倍数共享
+    const nBy = this.state.nByAsset;
+    const setN = (k) => (val) => this.setState({ nByAsset: { ...this.state.nByAsset, [k]: val } });
+    const cents = (p) => Math.round(p * 100) + '¢';
+    const UP = 'var(--c-up,#f6465d)', DOWN = 'var(--c-down,#0ecb81)';
+    const ladder = (entry, curP, N, profit) => {
+      const tgt = Math.min(entry * N, 1);
+      const range = Math.max(tgt - entry, 0.0001);
+      const fill = Math.max(0, Math.min(1, (curP - entry) / range)) * 100;
+      const pos2x = (entry / range) * 100;
+      return {
+        fill: fill.toFixed(0) + '%',
+        pos2x: pos2x.toFixed(0) + '%',
+        show2x: entry * 2 < tgt - 0.0001 && pos2x > 4 && pos2x < 97,
+        entryC: cents(entry),
+        targetC: entry * N > 1 ? '>$1' : cents(entry * N),
+        color: profit ? UP : DOWN,
+      };
+    };
+    const lf = ladder(0.19, 0.38, nBy.france, true);
+    const lb = ladder(0.28, 0.41, nBy.brazil, true);
+    const lo = ladder(0.35, 0.33, nBy.over, false);
+
+    return {
+      pqTheme: theme,
+      themeLabel: theme === 'light' ? '浅色 · 白天模式' : '深色 · 折叠密集流 + 点击展开操作',
+
+      toggleAuth: () => this.setState({ authOpen: !this.state.authOpen }),
+      toggleSettings: () => this.setState({ settingsOpen: !this.state.settingsOpen }),
+      authOpen: this.state.authOpen,
+      settingsOpen: this.state.settingsOpen,
+      authChev: this.state.authOpen ? 'display:inline-block;transform:rotate(180deg);' : 'display:inline-block;',
+      settingsChev: this.state.settingsOpen ? 'display:inline-block;transform:rotate(180deg);' : 'display:inline-block;',
+
+      setThemeSystem: setTheme('system'),
+      setThemeDark: setTheme('dark'),
+      setThemeLight: setTheme('light'),
+      segSystem: seg(tm === 'system'),
+      segDark: seg(tm === 'dark'),
+      segLight: seg(tm === 'light'),
+
+      setLangZh: () => this.setState({ lang: 'zh' }),
+      setLangEn: () => this.setState({ lang: 'en' }),
+      segZh: seg(lang === 'zh'),
+      segEn: seg(lang === 'en'),
+
+      toggleHide: () => this.setState({ hideSettled: !this.state.hideSettled }),
+      hideToggleStyle: onToggle(hide, 'var(--c-blue,#4fa8f5)'),
+      hideText: hide ? '已隐藏' : '显示',
+
+      toggleDry: () => this.setState({ dryRun: !this.state.dryRun }),
+      dryToggleStyle: onToggle(isDry, 'var(--c-up,#f6465d)'),
+      dryLabel: isDry ? '模拟交易' : '实盘',
+
+      modeText: isDry ? '模拟交易' : '实盘',
+      modeColor: isDry ? 'var(--c-up,#f6465d)' : 'var(--c-down,#0ecb81)',
+      modeBg: isDry ? 'var(--t-up-bg,rgba(246,70,93,.12))' : 'var(--t-down-bg,rgba(14,203,129,.12))',
+      modeBorder: isDry ? 'var(--t-up-bd,rgba(246,70,93,.3))' : 'var(--t-down-bd,rgba(14,203,129,.3))',
+      showSummary: (this.props.showSummary ?? 'true') !== 'false',
+
+      franceN: nBy.france.toFixed(1), brazilN: nBy.brazil.toFixed(1), overN: nBy.over.toFixed(1), lakersN: nBy.lakers.toFixed(1),
+      setFranceN: setN('france'), setBrazilN: setN('brazil'), setLakersN: setN('lakers'), setOverN: setN('over'),
+      franceFill: lf.fill, francePos2x: lf.pos2x, franceShow2x: lf.show2x, franceEntryC: lf.entryC, franceTargetC: lf.targetC, franceLadColor: lf.color,
+      brazilFill: lb.fill, brazilPos2x: lb.pos2x, brazilShow2x: lb.show2x, brazilEntryC: lb.entryC, brazilTargetC: lb.targetC, brazilLadColor: lb.color,
+      overFill: lo.fill, overPos2x: lo.pos2x, overShow2x: lo.show2x, overEntryC: lo.entryC, overTargetC: lo.targetC, overLadColor: lo.color,
+
+      openFrance: open === 'france',
+      openBrazil: open === 'brazil',
+      openLakers: open === 'lakers',
+      openOver: open === 'over',
+      toggleFrance: toggle('france'),
+      toggleBrazil: toggle('brazil'),
+      toggleLakers: toggle('lakers'),
+      toggleOver: toggle('over'),
+      franceChev: chev('france'),
+      brazilChev: chev('brazil'),
+      lakersChev: chev('lakers'),
+      overChev: chev('over'),
+      franceBg: open === 'france' ? 'rgba(120,130,150,.08)' : 'transparent',
+    };
+  }
+}
+</script>
+</body>
+</html>

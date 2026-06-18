@@ -3,6 +3,8 @@ export interface StopLossConfig {
   windowMs: number | null;
   threshold: number | null;
   sellFraction: number | null;
+  // 每仓滑点容忍(0~0.5):止损卖单限价 = bestBid×(1−slippage);null = 用全局默认。
+  slippage: number | null;
 }
 
 export type StopLossConfigs = Record<string, StopLossConfig>;
@@ -15,6 +17,7 @@ const DEFAULT_STOP_LOSS_CONFIG: StopLossConfig = {
   windowMs: null,
   threshold: null,
   sellFraction: null,
+  slippage: null,
 };
 
 function clampNullableNumber(value: unknown, min: number, max: number): number | null {
@@ -32,9 +35,10 @@ function clampNullableNumber(value: unknown, min: number, max: number): number |
 export function normalizeStopLossConfig(value: Partial<StopLossConfig> | undefined): StopLossConfig {
   return {
     armed: typeof value?.armed === 'boolean' ? value.armed : DEFAULT_STOP_LOSS_CONFIG.armed,
-    windowMs: clampNullableNumber(value?.windowMs, 5_000, 300_000),
+    windowMs: clampNullableNumber(value?.windowMs, 1_000, 300_000),
     threshold: clampNullableNumber(value?.threshold, 0.01, 0.5),
     sellFraction: clampNullableNumber(value?.sellFraction, 0.05, 1),
+    slippage: clampNullableNumber(value?.slippage, 0, 0.5),
   };
 }
 

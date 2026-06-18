@@ -3,7 +3,7 @@
  * 后续阶段在此扩展(持仓推送、下单指令、止损配置等)。
  */
 
-import type { OpenOrder } from '@polymarket/clob-client';
+import type { OpenOrder } from '@polymarket/clob-client-v2';
 import type { PlaceSellMode, PlaceSellResult } from '@/lib/trading/orders';
 
 export type PingMessage = { type: 'ping' };

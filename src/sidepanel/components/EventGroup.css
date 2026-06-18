@@ -1,0 +1,49 @@
+/* 事件分组 + 密集流 */
+.pq-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pq-group {
+  background: var(--c-bg);
+}
+
+.pq-group__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 15px;
+  background: var(--c-surface);
+}
+
+.pq-group__name {
+  overflow: hidden;
+  margin: 0;
+  color: var(--c-text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pq-group__count {
+  flex: 0 0 auto;
+  color: var(--c-muted2);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+}
+
+/* 展开时:行底线交给整个持仓块,行本身去线,避免与 ops 顶线重叠 */
+.pq-pos--open {
+  border-bottom: 1px solid var(--c-border);
+}
+
+.pq-pos--open .pq-row {
+  border-bottom: 0;
+}

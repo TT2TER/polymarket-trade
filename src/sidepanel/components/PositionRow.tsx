@@ -1,0 +1,163 @@
+import { progressBar } from '@/lib/calc/progressBar';
+import type { PositionView } from '@/lib/types';
+import { useMonitorStore, useT } from '@/sidepanel/store';
+
+interface PositionRowProps {
+  view: PositionView;
+  /** 默认目标倍数(config.multipliers[0]);每仓实际 N 优先取 store 覆盖值,与交易 Tab 滑块联动 */
+  defaultMultiplier: number;
+  isOpen: boolean;
+  onToggle: () => void;
+}
+
+function finite(value: number): number {
+  return Number.isFinite(value) ? value : 0;
+}
+
+function formatCents(price: number): string {
+  const c = finite(price) * 100;
+  if (c > 0 && c < 9.5) {
+    return `${c.toFixed(1)}¢`;
+  }
+  return `${Math.round(c)}¢`;
+}
+
+function formatShares(value: number): string {
+  return finite(value).toLocaleString(undefined, { maximumFractionDigits: value > 1000 ? 0 : 2 });
+}
+
+function formatSignedMoney(value: number): string {
+  const v = finite(value);
+  const sign = v > 0 ? '+' : v < 0 ? '−' : '';
+  const abs = Math.abs(v);
+  const body = abs >= 100 ? abs.toFixed(0) : abs.toFixed(2);
+  return `${sign}$${Number(body).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+}
+
+function formatMoney(value: number): string {
+  const v = finite(value);
+  return `$${v.toLocaleString(undefined, { maximumFractionDigits: v >= 100 ? 0 : 2 })}`;
+}
+
+function formatPercent(value: number): string {
+  const v = finite(value);
+  const sign = v > 0 ? '+' : v < 0 ? '−' : '';
+  const abs = Math.abs(v);
+  return `${sign}${abs >= 10 ? abs.toFixed(0) : abs.toFixed(1)}%`;
+}
+
+export function PositionRow({ view, defaultMultiplier, isOpen, onToggle }: PositionRowProps) {
+  const t = useT();
+  const stopLossConfig = useMonitorStore((state) => state.stopLossConfigs[view.position.asset]);
+  const storedMultiplier = useMonitorStore((state) => state.targetMultipliers[view.position.asset]);
+  const targetMultiplier = storedMultiplier ?? defaultMultiplier;
+
+  // 总盈亏 = 已实现(API) + 未实现(本地按最优买价实时计算)。% 仅取未实现(盯市)。
+  const realized = finite(view.position.realizedPnl);
+  const totalPnl = realized + view.unrealizedPnlAbsolute;
+  const gain = view.unrealizedPnlAbsolute >= 0;
+  const side = gain ? 'up' : 'down';
+
+  const bar = progressBar(view.position.avgPrice, view.currentPrice, targetMultiplier);
+  const armed = stopLossConfig?.armed ?? false;
+
+  return (
+    <button
+      aria-expanded={isOpen}
+      className={`pq-row ${isOpen ? 'pq-row--open' : ''}`}
+      onClick={onToggle}
+      type="button"
+    >
+      <div className="pq-row__l1">
+        <span className={`pq-tag pq-tag--${side}`}>{view.position.outcome.toUpperCase()}</span>
+        <span className="pq-row__title">{view.position.title}</span>
+        <span className={`pq-row__pnl pq-row__pnl--${side}`}>{formatPercent(view.unrealizedPnlPercent)}</span>
+        <span className={`pq-row__chev ${isOpen ? 'pq-row__chev--open' : ''}`}>▾</span>
+      </div>
+
+      <div className="pq-row__l2">
+        <span className="pq-row__nums">
+          <span className="pq-muted">{formatShares(view.position.size)}</span>
+          <span className="pq-muted"> @ {formatCents(view.position.avgPrice)}</span>
+          <span className="pq-arrow"> → </span>
+          <span className="pq-strongnum">{formatCents(view.currentPrice)}</span>
+        </span>
+        <span className="pq-row__value">
+          {formatMoney(view.positionValue)}
+          <span className="pq-dot"> · </span>
+          <span className={`pq-row__pnl--${side}`}>{formatSignedMoney(totalPnl)}</span>
+        </span>
+      </div>
+
+      <div className="pq-row__l3">
+        {armed ? (
+          <span className="pq-armed">
+            ⛨ {t('row.armed', {
+              window: Math.round((stopLossConfig?.windowMs ?? 0) / 1000),
+              threshold: ((stopLossConfig?.threshold ?? 0) * 100).toFixed(0),
+              fraction: ((stopLossConfig?.sellFraction ?? 0) * 100).toFixed(0),
+            })}
+          </span>
+        ) : (
+          <ProgressTrack bar={bar} multiplier={targetMultiplier} cappedLabel={t('position.capped')} t={t} />
+        )}
+      </div>
+    </button>
+  );
+}
+
+function ProgressTrack({
+  bar,
+  multiplier,
+  cappedLabel,
+  t,
+}: {
+  bar: ReturnType<typeof progressBar>;
+  multiplier: number;
+  cappedLabel: string;
+  t: ReturnType<typeof useT>;
+}) {
+  const pct = (v: number): string => `${(v * 100).toFixed(2)}%`;
+  const fillLeft = Math.min(bar.fillStart, bar.fillEnd);
+  const fillWidth = Math.abs(bar.fillEnd - bar.fillStart);
+
+  if (bar.mode === 'loss') {
+    return (
+      <div className="pq-bar">
+        <div className="pq-bar__track">
+          <span
+            className="pq-bar__fill pq-bar__fill--down"
+            style={{ left: pct(fillLeft), width: pct(fillWidth) }}
+          />
+          <span className="pq-bar__knob pq-bar__knob--down" style={{ left: pct(bar.currentPos) }} />
+        </div>
+        <div className="pq-bar__labels">
+          <span className="pq-bar__label">{t('row.wipeout')} 0¢</span>
+          <span className="pq-bar__label">{t('row.breakeven')} {formatCents(bar.entry)}</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pq-bar">
+      <div className="pq-bar__track">
+        <span
+          className={`pq-bar__fill pq-bar__fill--${bar.fillSide}`}
+          style={{ left: pct(fillLeft), width: pct(fillWidth) }}
+        />
+        {bar.targetPos !== undefined ? (
+          <span className="pq-bar__target" style={{ left: pct(bar.targetPos) }} />
+        ) : null}
+        <span className={`pq-bar__knob pq-bar__knob--${bar.fillSide}`} style={{ left: pct(bar.currentPos) }} />
+      </div>
+      <div className="pq-bar__labels">
+        <span className="pq-bar__label">IN {formatCents(bar.entry)}</span>
+        <span className="pq-bar__label pq-bar__label--target">
+          {multiplier % 1 === 0 ? multiplier : multiplier.toFixed(1)}× {formatCents(bar.target ?? 0)}
+          {bar.reachable === false ? ` ${cappedLabel}` : ''}
+        </span>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,47 @@
+/* 止损 Tab */
+.pq-stop {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pq-stop__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pq-stop__slider {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.pq-stop__val {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--c-text-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.pq-stop__status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  border-radius: var(--pq-radius-input);
+  background: var(--c-cell);
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--c-muted);
+}
+
+.pq-stop__hint {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  color: var(--c-muted2);
+  text-align: center;
+  letter-spacing: 0.3px;
+}

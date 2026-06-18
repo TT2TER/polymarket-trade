@@ -1,13 +1,13 @@
-import { ClobClient, type ApiKeyCreds } from '@polymarket/clob-client';
+import { ClobClient, Chain, SignatureTypeV2, type ApiKeyCreds } from '@polymarket/clob-client-v2';
 import { Wallet } from 'ethers';
 
 export const CLOB_HOST = 'https://clob.polymarket.com';
-export const CHAIN_ID = 137;
-export const SIGNATURE_TYPE = 1;
+export const CHAIN_ID = Chain.POLYGON;
+// POLY_PROXY=1:邮箱/Magic 登录的 Polymarket 代理钱包。V2 枚举:EOA=0, POLY_PROXY=1, POLY_GNOSIS_SAFE=2, POLY_1271=3。
+export const SIGNATURE_TYPE = SignatureTypeV2.POLY_PROXY;
 
 export function buildSigner(privateKey: string): Wallet {
-  // clob-client 5.8.1 accepts an ethers-style signer structurally
-  // (_signTypedData + getAddress); ethers v5 Wallet provides that shape.
+  // clob-client-v2 的签名者结构上接受 ethers v5 Wallet(具备 _signTypedData + getAddress)。
   return new Wallet(privateKey);
 }
 
@@ -18,9 +18,16 @@ export function deriveAddress(privateKey: string): string {
 }
 
 export async function deriveCreds(privateKey: string): Promise<ApiKeyCreds> {
-  return new ClobClient(CLOB_HOST, CHAIN_ID, buildSigner(privateKey)).createOrDeriveApiKey();
+  return new ClobClient({ host: CLOB_HOST, chain: CHAIN_ID, signer: buildSigner(privateKey) }).createOrDeriveApiKey();
 }
 
 export function getAuthedClient(privateKey: string, creds: ApiKeyCreds, funder: string): ClobClient {
-  return new ClobClient(CLOB_HOST, CHAIN_ID, buildSigner(privateKey), creds, SIGNATURE_TYPE, funder);
+  return new ClobClient({
+    host: CLOB_HOST,
+    chain: CHAIN_ID,
+    signer: buildSigner(privateKey),
+    creds,
+    signatureType: SIGNATURE_TYPE,
+    funderAddress: funder,
+  });
 }

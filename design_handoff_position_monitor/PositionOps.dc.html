@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  [data-pqtheme="dark"]{--c-bg:#0b0e11;--c-surface:#0e1217;--c-cell:#12161c;--c-card:#161a1e;--c-track:#1e2329;--c-border:#2b3139;--c-border-soft:#1c222a;--c-text:#eaecef;--c-text-strong:#e6e9ef;--c-muted:#9aa3af;--c-muted2:#5e6673;--c-up:#f6465d;--c-down:#0ecb81;--c-target:#f0b90b;--c-blue:#4fa8f5;--c-live:#2dd4bf;--c-on-accent:#0b0e11;--t-up-bg:rgba(246,70,93,.12);--t-up-bd:rgba(246,70,93,.32);--t-down-bg:rgba(14,203,129,.12);--t-down-bd:rgba(14,203,129,.32);--t-target-bg:rgba(240,185,11,.10);--t-target-bd:rgba(240,185,11,.26);--t-blue-bg:rgba(79,168,245,.12);--t-blue-bd:rgba(79,168,245,.30);}
+  [data-pqtheme="light"]{--c-bg:#ffffff;--c-surface:#f4f6f8;--c-cell:#fafbfc;--c-card:#ffffff;--c-track:#e7e9ee;--c-border:#dfe2e8;--c-border-soft:#eceef2;--c-text:#141821;--c-text-strong:#0d1016;--c-muted:#5d6470;--c-muted2:#9aa0ab;--c-up:#dc2640;--c-down:#06a368;--c-target:#b07d00;--c-blue:#2f86d8;--c-live:#0d9488;--c-on-accent:#ffffff;--t-up-bg:rgba(220,38,64,.09);--t-up-bd:rgba(220,38,64,.28);--t-down-bg:rgba(6,163,104,.10);--t-down-bd:rgba(6,163,104,.30);--t-target-bg:rgba(176,125,0,.12);--t-target-bd:rgba(176,125,0,.30);--t-blue-bg:rgba(47,134,216,.10);--t-blue-bd:rgba(47,134,216,.30);}
+  .pq-range{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:3px;background:var(--c-track,#262d36);outline:none;cursor:pointer;}
+  .pq-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:15px;height:15px;border-radius:50%;background:var(--pq-acc,#f6465d);border:2px solid var(--c-bg,#0b0e11);box-shadow:0 0 0 1px var(--pq-acc,#f6465d);cursor:pointer;}
+  .pq-range::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--pq-acc,#f6465d);border:2px solid var(--c-bg,#0b0e11);cursor:pointer;}
+</style>
+</helmet>
+
+<div style="background:var(--c-surface,#0e1217);border-top:1px solid var(--c-border,#2b3139);padding:13px 15px 15px;font-family:'Archivo',sans-serif;">
+
+  <!-- target prices -->
+  <div style="display:flex;align-items:center;gap:7px;margin-top:2px;">
+    <span style="font:500 8.5px/1 'IBM Plex Mono';letter-spacing:.5px;color:var(--c-muted2,#5e6673);flex:none;">回本翻倍价</span>
+    <div style="display:flex;gap:6px;flex:1;">
+      <sc-for list="{{ targetChips }}" as="chip" hint-placeholder-count="3">
+        <span style="flex:1;text-align:center;font:600 9.5px/1 'IBM Plex Mono';color:{{ chip.color }};background:{{ chip.bg }};border:1px solid {{ chip.border }};border-radius:5px;padding:6px 4px;">{{ chip.label }} {{ chip.price }}</span>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- ===== ORDER BOOK (resident, click rows to expand) ===== -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:13px;">
+    <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.5px;color:var(--c-muted,#9aa3af);">盘口 LOB · CLOB 实时</span>
+    <span style="font:500 8px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);">{{ bookHint }}</span>
+  </div>
+
+  <sc-if value="{{ bookFolded }}" hint-placeholder-val="{{ true }}">
+  <div onClick="{{ toggleBook }}" style="display:flex;gap:8px;margin-top:9px;cursor:pointer;">
+    <div style="flex:1;position:relative;display:flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid var(--t-up-bd,rgba(246,70,93,.25));border-radius:6px;overflow:hidden;">
+      <div style="position:absolute;right:0;top:0;bottom:0;width:{{ bid1W }};background:var(--t-up-bg,rgba(246,70,93,.12));"></div>
+      <span style="position:relative;font:600 8px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);">买1</span>
+      <span style="position:relative;font:600 11px/1 'IBM Plex Mono';color:var(--c-up,#f6465d);">{{ bid1Price }}</span>
+      <span style="position:relative;margin-left:auto;font:400 9px/1 'IBM Plex Mono';color:var(--c-muted,#9aa3af);">×{{ bid1Size }}</span>
+    </div>
+    <div style="flex:1;position:relative;display:flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid var(--t-down-bd,rgba(14,203,129,.25));border-radius:6px;overflow:hidden;">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:{{ ask1W }};background:var(--t-down-bg,rgba(14,203,129,.12));"></div>
+      <span style="position:relative;font:600 8px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);">卖1</span>
+      <span style="position:relative;font:600 11px/1 'IBM Plex Mono';color:var(--c-down,#0ecb81);">{{ ask1Price }}</span>
+      <span style="position:relative;margin-left:auto;font:400 9px/1 'IBM Plex Mono';color:var(--c-muted,#9aa3af);">×{{ ask1Size }}</span>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ bookOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ toggleBook }}" style="margin-top:9px;cursor:pointer;">
+    <div style="display:flex;gap:10px;">
+      <div style="flex:1;">
+        <div style="display:flex;justify-content:space-between;font:600 8px/1 'IBM Plex Mono';letter-spacing:.5px;color:var(--c-muted2,#5e6673);margin-bottom:7px;padding:0 2px;">
+          <span>买价 BID</span><span>数量</span>
+        </div>
+        <sc-for list="{{ bids }}" as="lv" hint-placeholder-count="5">
+          <div style="position:relative;display:flex;justify-content:space-between;padding:5px 6px;margin-bottom:2px;border-radius:3px;overflow:hidden;border:1px solid {{ lv.border }};">
+            <div style="position:absolute;right:0;top:0;bottom:0;width:{{ lv.w }};background:var(--t-up-bg,rgba(246,70,93,.12));"></div>
+            <span style="position:relative;font:600 10px/1 'IBM Plex Mono';color:var(--c-up,#f6465d);">{{ lv.price }}</span>
+            <span style="position:relative;font:400 10px/1 'IBM Plex Mono';color:var(--c-muted,#9aa3af);">{{ lv.size }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="flex:1;">
+        <div style="display:flex;justify-content:space-between;font:600 8px/1 'IBM Plex Mono';letter-spacing:.5px;color:var(--c-muted2,#5e6673);margin-bottom:7px;padding:0 2px;">
+          <span>卖价 ASK</span><span>数量</span>
+        </div>
+        <sc-for list="{{ asks }}" as="lv" hint-placeholder-count="5">
+          <div style="position:relative;display:flex;justify-content:space-between;padding:5px 6px;margin-bottom:2px;border-radius:3px;overflow:hidden;border:1px solid {{ lv.border }};">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:{{ lv.w }};background:var(--t-down-bg,rgba(14,203,129,.12));"></div>
+            <span style="position:relative;font:600 10px/1 'IBM Plex Mono';color:var(--c-down,#0ecb81);">{{ lv.price }}</span>
+            <span style="position:relative;font:400 10px/1 'IBM Plex Mono';color:var(--c-muted,#9aa3af);">{{ lv.size }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ===== OPEN ORDERS (resident, only if any) ===== -->
+  <sc-if value="{{ hasOrders }}" hint-placeholder-val="{{ true }}">
+  <div style="margin-top:13px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.5px;color:var(--c-muted,#9aa3af);">未成交订单 · {{ orderCount }}</span>
+      <button style="font:600 9px/1 'IBM Plex Mono';color:var(--c-muted,#9aa3af);background:transparent;border:1px solid var(--c-border,#2b3139);border-radius:5px;padding:6px 9px;cursor:pointer;">全部取消</button>
+    </div>
+    <sc-for list="{{ openOrders }}" as="o" hint-placeholder-count="1">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;margin-bottom:7px;background:var(--c-cell,#12161c);border:1px solid var(--c-border-soft,#1c222a);border-radius:7px;">
+        <div>
+          <div style="font:600 11px/1 'IBM Plex Mono';color:var(--c-text,#eaecef);">{{ o.side }} {{ o.size }} @ {{ o.price }}</div>
+          <div style="font:400 8.5px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);margin-top:5px;">{{ o.meta }}</div>
+        </div>
+        <button style="font:600 9px/1 'IBM Plex Mono';color:var(--c-down,#0ecb81);background:transparent;border:1px solid var(--c-border,#2b3139);border-radius:5px;padding:6px 9px;cursor:pointer;">撤单</button>
+      </div>
+    </sc-for>
+  </div>
+  </sc-if>
+
+  <div style="height:1px;background:var(--c-border-soft,#1c222a);margin:13px 0;"></div>
+
+  <!-- tabs -->
+  <div style="display:flex;gap:5px;padding:3px;background:var(--c-bg,#0b0e11);border:1px solid var(--c-border-soft,#1c222a);border-radius:8px;">
+    <div onClick="{{ goTrade }}" style="{{ tradeTabStyle }}">交易</div>
+    <div onClick="{{ goStop }}" style="{{ stopTabStyle }}">止损</div>
+  </div>
+
+  <!-- ===== TRADE PANEL ===== -->
+  <sc-if value="{{ isTrade }}" hint-placeholder-val="{{ true }}">
+  <div style="margin-top:13px;">
+
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+      <span style="font:500 10px/1 'Archivo';color:var(--c-muted,#9aa3af);">卖出数量</span>
+      <span style="font:600 11px/1 'IBM Plex Mono';color:var(--c-text,#eaecef);">{{ sellSharesStr }} <span style="color:var(--c-muted2,#5e6673);">/ {{ sizeStr }} 股</span> · <span style="color:{{ pnlColor }};">≈{{ sellEstStr }}</span></span>
+    </div>
+    <input type="range" class="pq-range" min="0" max="100" step="1" value="{{ sellPct }}" onChange="{{ onSellPct }}" style="--pq-acc:var(--c-up,#f6465d);"/>
+    <div style="display:flex;justify-content:space-between;margin-top:5px;font:500 8px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);">
+      <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>全部</span>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:11px;">
+      <button style="flex:1;font:600 11px/1.3 'Archivo';color:var(--c-muted,#9aa3af);background:transparent;border:1px solid var(--c-border,#2b3139);border-radius:7px;padding:9px 6px;cursor:pointer;">价格优先<br><span style="font:500 8px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);">挂被动单 {{ bestAskStr }}</span></button>
+      <button style="flex:1;font:600 11px/1.3 'Archivo';color:var(--c-on-accent,#0b0e11);background:var(--c-up,#f6465d);border:none;border-radius:7px;padding:9px 6px;cursor:pointer;">成交优先<br><span style="font:500 8px/1 'IBM Plex Mono';color:var(--c-on-accent,#0b0e11);opacity:.7;">立即卖出 {{ bestBidStr }}</span></button>
+    </div>
+
+    <div style="height:1px;background:var(--c-border-soft,#1c222a);margin:13px 0;"></div>
+
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+      <span style="font:500 10px/1 'Archivo';color:var(--c-muted,#9aa3af);">目标倍数 N</span>
+      <span style="font:600 11px/1 'IBM Plex Mono';color:var(--c-target,#f0b90b);">{{ nStr }}× → {{ nPriceStr }}</span>
+    </div>
+    <input type="range" class="pq-range" min="0" max="100" step="0.5" value="{{ nSliderPos }}" onChange="{{ onN }}" style="--pq-acc:var(--c-target,#f0b90b);"/>
+    <div style="position:relative;height:11px;margin-top:6px;">
+      <sc-for list="{{ nTicks }}" as="tk" hint-placeholder-count="6">
+        <span style="position:absolute;left:{{ tk.left }};transform:{{ tk.tf }};font:500 8px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);">{{ tk.label }}</span>
+      </sc-for>
+    </div>
+    <div style="text-align:center;margin-top:6px;font:400 7.5px/1 'IBM Plex Mono';color:var(--c-muted2,#4a525c);">前 3× 细调 · 之后对数压缩,最高 20×</div>
+
+    <div style="display:flex;gap:8px;margin-top:11px;">
+      <button style="flex:1;font:600 11px/1.3 'Archivo';color:var(--c-muted,#9aa3af);background:transparent;border:1px solid var(--c-border,#2b3139);border-radius:7px;padding:9px 6px;cursor:pointer;">N倍挂单<br><span style="font:500 8px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);">{{ nStr }}×均价 限价卖</span></button>
+      <button style="flex:1;font:600 11px/1.3 'Archivo';color:var(--c-muted,#9aa3af);background:transparent;border:1px solid var(--c-border,#2b3139);border-radius:7px;padding:9px 6px;cursor:pointer;">回收成本<br><span style="font:500 8px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);">卖 {{ recoverSharesStr }} 股留剩余</span></button>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:7px;margin-top:12px;padding:8px 10px;background:var(--t-up-bg,rgba(246,70,93,.07));border:1px solid var(--t-up-bd,rgba(246,70,93,.2));border-radius:6px;">
+      <span style="font:600 8.5px/1 'IBM Plex Mono';letter-spacing:.5px;color:var(--c-up,#f6465d);background:var(--t-up-bg,rgba(246,70,93,.15));padding:3px 5px;border-radius:3px;">模拟交易</span>
+      <span style="font:400 9px/1.4 'Archivo';color:var(--c-muted,#848e9c);">下单只签名不提交 · 确认弹窗强制二次确认</span>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ===== STOP-LOSS PANEL ===== -->
+  <sc-if value="{{ isStop }}" hint-placeholder-val="{{ false }}">
+  <div style="margin-top:13px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:13px;">
+      <div>
+        <div style="font:600 12px/1 'Archivo';color:var(--c-text,#eaecef);">瞬时下跌止损</div>
+        <div style="font:400 8.5px/1.3 'IBM Plex Mono';color:var(--c-muted2,#5e6673);margin-top:4px;">每仓单独武装 · 仅侧边栏打开时运行</div>
+      </div>
+      <div onClick="{{ toggleArm }}" style="{{ armToggleStyle }}">
+        <div style="{{ armKnobStyle }}"></div>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;">
+      <span style="font:500 10px/1 'Archivo';color:var(--c-muted,#9aa3af);">滚动窗口</span>
+      <span style="font:600 11px/1 'IBM Plex Mono';color:var(--c-text,#eaecef);">{{ slWindowStr }}</span>
+    </div>
+    <input type="range" class="pq-range" min="5" max="120" step="5" value="{{ slWindow }}" onChange="{{ onWindow }}" style="--pq-acc:var(--c-down,#0ecb81);"/>
+
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin:13px 0 7px;">
+      <span style="font:500 10px/1 'Archivo';color:var(--c-muted,#9aa3af);">跌幅阈值 <span style="font:400 8px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);">随价位自适应</span></span>
+      <span style="font:600 11px/1 'IBM Plex Mono';color:var(--c-down,#0ecb81);">−{{ slDropStr }}</span>
+    </div>
+    <input type="range" class="pq-range" min="3" max="30" step="1" value="{{ slDrop }}" onChange="{{ onDrop }}" style="--pq-acc:var(--c-down,#0ecb81);"/>
+
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin:13px 0 7px;">
+      <span style="font:500 10px/1 'Archivo';color:var(--c-muted,#9aa3af);">触发卖出比例</span>
+      <span style="font:600 11px/1 'IBM Plex Mono';color:var(--c-down,#0ecb81);">{{ slSellStr }} · {{ slSellSharesStr }} 股</span>
+    </div>
+    <input type="range" class="pq-range" min="5" max="100" step="5" value="{{ slSell }}" onChange="{{ onSlSell }}" style="--pq-acc:var(--c-down,#0ecb81);"/>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;">
+      <div style="padding:8px 10px;background:var(--c-cell,#12161c);border:1px solid var(--c-border-soft,#1c222a);border-radius:6px;">
+        <div style="font:500 8px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);margin-bottom:5px;">上次触发</div>
+        <div style="font:600 10px/1 'IBM Plex Mono';color:var(--c-muted,#9aa3af);">无</div>
+      </div>
+      <div style="padding:8px 10px;background:var(--c-cell,#12161c);border:1px solid var(--c-border-soft,#1c222a);border-radius:6px;">
+        <div style="font:500 8px/1 'IBM Plex Mono';color:var(--c-muted2,#5e6673);margin-bottom:5px;">冷却 (触发后 60s)</div>
+        <div style="font:600 10px/1 'IBM Plex Mono';color:{{ armColor }};">{{ armStatusStr }}</div>
+      </div>
+    </div>
+    <button style="width:100%;margin-top:9px;font:600 11px/1 'Archivo';color:{{ armColor }};background:{{ armBtnBg }};border:1px solid {{ armBtnBorder }};border-radius:7px;padding:10px;cursor:pointer;">{{ armBtnText }}</button>
+  </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:392,&quot;height&quot;:560},&quot;size&quot;:{&quot;editor&quot;:null,&quot;default&quot;:3000,&quot;tsType&quot;:&quot;number&quot;},&quot;avg&quot;:{&quot;editor&quot;:null,&quot;default&quot;:0.19,&quot;tsType&quot;:&quot;number&quot;},&quot;cur&quot;:{&quot;editor&quot;:null,&quot;default&quot;:0.38,&quot;tsType&quot;:&quot;number&quot;},&quot;bestBid&quot;:{&quot;editor&quot;:null,&quot;default&quot;:0.38,&quot;tsType&quot;:&quot;number&quot;},&quot;bestAsk&quot;:{&quot;editor&quot;:null,&quot;default&quot;:0.39,&quot;tsType&quot;:&quot;number&quot;},&quot;prob&quot;:{&quot;editor&quot;:null,&quot;default&quot;:38,&quot;tsType&quot;:&quot;number&quot;},&quot;slArmed&quot;:{&quot;editor&quot;:null,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;n&quot;:{&quot;editor&quot;:null,&quot;default&quot;:2,&quot;tsType&quot;:&quot;number&quot;},&quot;onNChange&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(n: number) =&gt; void&quot;}}">
+class Component extends DCLogic {
+  state = { tab: 'trade', sellPct: 100, n: 2, slArmed: false, slWindow: 30, slDrop: 12, slSell: 50, bookOpen: false };
+
+  componentDidMount() {
+    if (String(this.props.slArmed) === 'true') this.setState({ slArmed: true });
+  }
+
+  renderVals() {
+    const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+    const size = num(this.props.size);
+    const avg = num(this.props.avg);
+    const cur = num(this.props.cur);
+    const bestBid = num(this.props.bestBid) || cur;
+    const bestAsk = num(this.props.bestAsk) || (cur + 0.01);
+
+    const cost = avg * size;
+    const pnlAbs = (cur - avg) * size;
+    const profit = pnlAbs >= 0;
+    const UP = 'var(--c-up,#f6465d)', DOWN = 'var(--c-down,#0ecb81)';
+    const pnlColor = profit ? UP : DOWN;
+
+    const cents = (p) => Math.round(p * 100) + '¢';
+    const dec = (p) => p.toFixed(3);
+    const grp = (v) => Math.round(v).toLocaleString('en-US');
+
+    // targets
+    const targetChips = [2, 3, 5].map((m) => {
+      const price = avg * m;
+      const capped = price > 1;
+      return {
+        label: m + '×',
+        price: capped ? '不可达' : cents(price),
+        color: capped ? 'var(--c-muted2,#5e6673)' : 'var(--c-target,#f0b90b)',
+        bg: capped ? 'var(--c-cell,#12161c)' : 'var(--t-target-bg,rgba(240,185,11,.08))',
+        border: capped ? 'var(--c-border-soft,#1c222a)' : 'var(--t-target-bd,rgba(240,185,11,.25))',
+      };
+    });
+
+    // trade
+    const sellPct = this.state.sellPct;
+    const NMAX = 20;
+    const posFromN = (N) => (N <= 3 ? (N - 1) / 2 * 60 : 60 + Math.log(N / 3) / Math.log(NMAX / 3) * 40);
+    const nFromPos = (p) => { const N = p <= 60 ? 1 + p / 60 * 2 : 3 * Math.pow(NMAX / 3, (p - 60) / 40); return Math.round(N * 10) / 10; };
+    const n = (this.props.n != null ? num(this.props.n) : this.state.n) || 2;
+    const sellShares = Math.round(size * sellPct / 100);
+    const sellEst = sellShares * bestBid;
+    const targetRaw = avg * n;
+    const nPrice = Math.min(targetRaw, 1);
+    const recoverShares = Math.min(size, cur > 0 ? Math.round((n * cost) / cur) : 0);
+    const nTickVals = [1, 2, 3, 5, 10, 20];
+    const nTicks = nTickVals.map((v, i) => ({
+      label: v + '×',
+      left: posFromN(v).toFixed(1) + '%',
+      tf: i === 0 ? 'translateX(0)' : i === nTickVals.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)',
+    }));
+
+    // stop-loss
+    const slArmed = this.state.slArmed;
+    const slSellShares = Math.round(size * this.state.slSell / 100);
+
+    // order book — 5 levels each side around best
+    const bidSizes = [4200, 6100, 3300, 5400, 2100];
+    const askSizes = [3800, 5200, 2700, 6300, 1900];
+    const maxSz = Math.max(...bidSizes, ...askSizes);
+    const bids = bidSizes.map((s, i) => ({
+      price: dec(Math.max(0.001, bestBid - i * 0.01)),
+      size: grp(s),
+      w: Math.round(s / maxSz * 100) + '%',
+      border: i === 0 ? 'var(--t-up-bd,rgba(246,70,93,.35))' : 'transparent',
+    }));
+    const asks = askSizes.map((s, i) => ({
+      price: dec(Math.min(0.999, bestAsk + i * 0.01)),
+      size: grp(s),
+      w: Math.round(s / maxSz * 100) + '%',
+      border: i === 0 ? 'var(--t-down-bd,rgba(14,203,129,.35))' : 'transparent',
+    }));
+
+    // open orders
+    const openOrders = [{
+      side: 'SELL',
+      size: grp(Math.round(size * 0.4)),
+      price: dec(nPrice),
+      meta: 'GTC · LIVE · ' + n.toFixed(1) + '×均价挂单',
+    }];
+
+    // tabs
+    const tab = this.state.tab;
+    const tabStyle = (active) =>
+      `flex:1;text-align:center;font:600 10.5px/1 'IBM Plex Mono';letter-spacing:.5px;padding:8px 0;border-radius:6px;cursor:pointer;background:${active ? 'var(--c-track,#1e2329)' : 'transparent'};color:${active ? 'var(--c-text,#eaecef)' : 'var(--c-muted2,#5e6673)'};`;
+
+    return {
+      bestBidStr: bestBid > 0 ? cents(bestBid) : '无',
+      bestAskStr: bestAsk > 0 ? cents(bestAsk) : '无',
+      pnlColor,
+      targetChips,
+
+      goTrade: () => this.setState({ tab: 'trade' }),
+      goStop: () => this.setState({ tab: 'stop' }),
+      tradeTabStyle: tabStyle(tab === 'trade'),
+      stopTabStyle: tabStyle(tab === 'stop'),
+      isTrade: tab === 'trade',
+      isStop: tab === 'stop',
+
+      toggleBook: () => this.setState({ bookOpen: !this.state.bookOpen }),
+      bookOpen: this.state.bookOpen,
+      bookFolded: !this.state.bookOpen,
+      bookHint: this.state.bookOpen ? '点击收起' : '点击买一/卖一展开完整盘口',
+      bid1Price: bids[0].price,
+      bid1Size: bids[0].size,
+      bid1W: bids[0].w,
+      ask1Price: asks[0].price,
+      ask1Size: asks[0].size,
+      ask1W: asks[0].w,
+
+      hasOrders: openOrders.length > 0,
+      orderCount: openOrders.length,
+      openOrders,
+      bids,
+      asks,
+
+      sellPct,
+      sizeStr: grp(size),
+      sellSharesStr: grp(sellShares),
+      sellEstStr: '$' + grp(sellEst),
+      onSellPct: (e) => this.setState({ sellPct: Number(e.target.value) }),
+      nSliderPos: posFromN(n),
+      nStr: n.toFixed(1),
+      nPriceStr: targetRaw > 1 ? '>$1 封顶' : cents(nPrice),
+      recoverSharesStr: grp(recoverShares),
+      nTicks,
+      onN: (e) => { const val = nFromPos(Number(e.target.value)); if (this.props.onNChange) this.props.onNChange(val); else this.setState({ n: val }); },
+
+      slWindow: this.state.slWindow,
+      slWindowStr: this.state.slWindow + 's',
+      onWindow: (e) => this.setState({ slWindow: Number(e.target.value) }),
+      slDrop: this.state.slDrop,
+      slDropStr: this.state.slDrop + '%',
+      onDrop: (e) => this.setState({ slDrop: Number(e.target.value) }),
+      slSell: this.state.slSell,
+      slSellStr: this.state.slSell + '%',
+      slSellSharesStr: grp(slSellShares),
+      onSlSell: (e) => this.setState({ slSell: Number(e.target.value) }),
+
+      toggleArm: () => this.setState({ slArmed: !this.state.slArmed }),
+      armToggleStyle: `width:42px;height:24px;border-radius:13px;padding:3px;cursor:pointer;display:flex;${slArmed ? 'justify-content:flex-end;background:var(--c-down,#0ecb81);' : 'justify-content:flex-start;background:var(--c-track,#262d36);'}`,
+      armKnobStyle: 'width:18px;height:18px;border-radius:50%;background:#fff;',
+      armColor: slArmed ? DOWN : 'var(--c-muted,#9aa3af)',
+      armStatusStr: slArmed ? '就绪' : '未武装',
+      armBtnText: slArmed ? '已武装 · 点击解除' : '武装止损',
+      armBtnBg: slArmed ? 'var(--t-down-bg,rgba(14,203,129,.1))' : 'transparent',
+      armBtnBorder: slArmed ? 'var(--t-down-bd,rgba(14,203,129,.35))' : 'var(--c-border,#2b3139)',
+    };
+  }
+}
+</script>
+</body>
+</html>

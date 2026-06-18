@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { OpenOrder } from '@polymarket/clob-client';
+import type { OpenOrder } from '@polymarket/clob-client-v2';
 import { useMonitorStore, useT } from '@/sidepanel/store';
+import './OpenOrders.css';
 
 interface OpenOrdersProps {
   asset: string;
@@ -8,7 +9,7 @@ interface OpenOrdersProps {
 
 function formatPrice(value: string): string {
   const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed.toFixed(4) : value;
+  return Number.isFinite(parsed) ? parsed.toFixed(3) : value;
 }
 
 function remainingSize(order: OpenOrder): string {
@@ -18,7 +19,7 @@ function remainingSize(order: OpenOrder): string {
     return order.original_size;
   }
 
-  return Math.max(0, original - matched).toLocaleString(undefined, { maximumFractionDigits: 4 });
+  return Math.max(0, original - matched).toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
 export function OpenOrders({ asset }: OpenOrdersProps) {
@@ -30,20 +31,6 @@ export function OpenOrders({ asset }: OpenOrdersProps) {
   const cancelAll = useMonitorStore((state) => state.cancelAll);
   const authStatus = useMonitorStore((state) => state.authStatus);
   const [busyOrder, setBusyOrder] = useState<string | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  async function refresh(): Promise<void> {
-    if (!authStatus.authenticated) {
-      return;
-    }
-
-    setIsRefreshing(true);
-    try {
-      await getOpenOrders(asset);
-    } finally {
-      setIsRefreshing(false);
-    }
-  }
 
   async function handleCancel(orderID: string): Promise<void> {
     setBusyOrder(orderID);
@@ -64,45 +51,54 @@ export function OpenOrders({ asset }: OpenOrdersProps) {
   }
 
   useEffect(() => {
-    void refresh();
-  }, [asset, authStatus.authenticated]);
+    if (authStatus.authenticated) {
+      void getOpenOrders(asset);
+    }
+  }, [asset, authStatus.authenticated, getOpenOrders]);
+
+  // 常驻、仅有挂单时显示;有错误也提示。
+  if (orders.length === 0 && !error) {
+    return null;
+  }
 
   return (
-    <section className="open-orders">
-      <div className="open-orders__header">
-        <h4>{t('openOrders.title')}</h4>
-        <div>
-          <button disabled={!authStatus.authenticated || isRefreshing} onClick={() => void refresh()} type="button">
-            {isRefreshing ? t('openOrders.refreshing') : t('app.refresh')}
-          </button>
-          <button disabled={!authStatus.authenticated || orders.length === 0 || busyOrder !== null} onClick={() => void handleCancelAll()} type="button">
-            {t('openOrders.cancelAll')}
-          </button>
-        </div>
+    <section className="pq-orders">
+      <div className="pq-orders__head">
+        <span className="pq-orders__title">
+          {t('openOrders.title')} · {orders.length}
+        </span>
+        <button
+          className="pq-orders__cancel-all"
+          disabled={!authStatus.authenticated || orders.length === 0 || busyOrder !== null}
+          onClick={() => void handleCancelAll()}
+          type="button"
+        >
+          {t('openOrders.cancelAll')}
+        </button>
       </div>
 
-      {error ? <p className="open-orders__error">{error}</p> : null}
-      {orders.length === 0 ? <div className="open-orders__empty">{t('openOrders.empty')}</div> : null}
+      {error ? <p className="pq-form-error">{error}</p> : null}
 
-      {orders.length > 0 ? (
-        <div className="open-orders__list">
-          {orders.map((order) => (
-            <div className="open-order" key={order.id}>
-              <div>
-                <strong>
-                  {order.side} {remainingSize(order)} @ {formatPrice(order.price)}
-                </strong>
-                <span>
-                  {order.order_type} · {order.status}
-                </span>
-              </div>
-              <button disabled={busyOrder !== null} onClick={() => void handleCancel(order.id)} type="button">
-                {busyOrder === order.id ? t('openOrders.canceling') : t('confirm.cancel')}
-              </button>
-            </div>
-          ))}
+      {orders.map((order) => (
+        <div className="pq-order" key={order.id}>
+          <div className="pq-order__main">
+            <strong className="pq-order__line">
+              {order.side} {remainingSize(order)} @ {formatPrice(order.price)}
+            </strong>
+            <span className="pq-order__meta">
+              {order.order_type} · {order.status}
+            </span>
+          </div>
+          <button
+            className="pq-btn pq-order__cancel"
+            disabled={busyOrder !== null}
+            onClick={() => void handleCancel(order.id)}
+            type="button"
+          >
+            {busyOrder === order.id ? t('openOrders.canceling') : t('confirm.cancel')}
+          </button>
         </div>
-      ) : null}
+      ))}
     </section>
   );
 }

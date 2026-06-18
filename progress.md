@@ -283,3 +283,16 @@ i18n:AuthBar 文案集中在 `TEXT` 常量,便于 P6 抽取。
   - ✅ L1 面板 NaN qty:守卫改为 `Number.isFinite`。
   - 无私钥/凭据泄漏;config clamp 边界安全。`check-stoploss.mjs` 增 M1/M2 覆盖,三自测+构建全过。
 - 主功能 P0–P4 + P1.5 代码完成并均经"Codex 实现/Claude 实跑验收/Codex 独立审查/Claude 修复"闭环。剩:用户 Chrome 实测(P3 下单 dry-run→小额、P4 dry-run 触发)+ P6 打磨(含中英双语切换)。
+- 2026-06-19:UI 全面重设计(量化终端风:折叠密集流+点击展开操作区,深/浅主题,红涨绿跌)落地——Phase 0~5 全部完成并逐阶段 Codex 交叉审查;CSS 重构为 tokens.css + base.css + 每组件 co-located,删除 1000 行单体 styles.css。新增:汇总条(总值/未实现/24h P&L via user-pnl-api 低频拉)、进度条双锚点算法、每仓目标倍数 N(独立 storage,debounce,不重连 WS)、手风琴单展开懒挂载、已结算蓝卡、页脚;AuthBar/Settings/盘口/挂单/交易/止损全部重做为滑块驱动。
+- 2026-06-19:**交易后端从 `@polymarket/clob-client`(V1)迁到 `@polymarket/clob-client-v2`**——根因是 Polymarket 2026-04-28 升级 CLOB V2(EIP-712 域 v1→v2、新交易所地址、订单结构变),V1 订单被判 `invalid order version`。迁移完成(构造器对象化、createOrder+postOrder 统一四模式、删 feeRateBps/nonce),tsc+build 通过,Codex 复核 APPROVED。
+- 2026-06-19:止损执行改进——**触发卖单加每仓可调滑点**(FAK 限价=bestBid×(1−滑点)向下取整扫单,确保急跌成交而非被 Kill;滑点滑块进止损 Tab);滚动窗口下限 1s、跌幅上限 50%;成交优先/止损均走 FAK。
+- 2026-06-19:⛔ **实盘下单受阻(已记录,暂不解决)**:测试账户(邮箱/Magic)是 Polymarket **存款钱包(deposit wallet, ERC-1271)**,V2 需 `signatureType 3 (POLY_1271)` + ERC-7739 包裹 + L1 鉴权绑定存款钱包;而 `@polymarket/clob-client-v2`(含最新版/预发布)的 createApiKey 仍把 key 绑到 EOA、未做 1271 包裹(上游 bug #64/#65)→ 下单必被拒。两条并列解法:①等上游修复后把签名类型切 3;②迁到官方统一 SDK `@polymarket/client`(ts-sdk,createSecureClient 原生支持存款钱包,fetch/ox 浏览器友好)。**当前决策:插件只做监控+计算,暂不做实盘交易**(dryRun 默认 true,交易 UI/代码保留)。详见记忆 clob-v2-migration。
+- 2026-06-19:**对照设计稿的 UI 细节打磨 + 涨跌配色切换**(用户逐项反馈,Claude 直接改;commits `7c1cd04`/`d58da70`/`f2501e2`)。
+  - **交易按钮内联取价**:四个动作按钮主标题内联关键数值——价格优先 `{最优卖价}¢`、成交优先 `{最优买价}¢`、N 倍挂单 `{n}倍卖出{x}份`(x=滑块份额)、回收成本 `卖出{x}股回收{n}倍`(x 用 `computeNxCostQuantity` 整仓算)。目标倍数读数改 `N× → 目标价`。无副标题(用户定:数值进主标题)。
+  - **卖出数量可键盘输入**:右上角股数改 `<input type=number>`,与卖出滑块双向联动(反推百分比,钳制 0–整仓)。
+  - **目标倍数滑块封顶**:`maxReachableN = min(20, ⌊(1/均价)·10⌋/10)`(保证 N×均价 ≤ $1);引入单一 `effectiveMultiplier` 钳制,读数/渐变/标签/下单 payload 全部一致。⚠ 修复:`max` 必须保持 100(全尺度),否则拇指与金色填充错位——硬停由 `onChange` 同步钳制回弹实现(`setTargetMultiplier` 同步改内存、仅落盘 debounce)。
+  - **封盘倍率 chip**:回本翻倍价行加蓝色 `封盘 N×`(=1/均价)。
+  - **进度条封盘锚定**(`progressBar.ts`):把 `[entry,target]→[15%,70%]` 斜率外推到右端,若该价 > $1 则切「封盘锚定」——右端固定 100¢(PRICE_MAX)、`entry→$1` 铺满 `[15%,100%]`、黄线按真实比例右移;与原 70%-pinned 模型在边界处恰好连续(数值验证过)。
+  - **涨跌配色 A股/美股切换**:新增语义令牌 `--c-gain/--c-loss` + `--t-gain/loss-*`(`tokens.css`,引用 `--c-up/--c-down` 故跟随深浅主题),`:root[data-color-style='us']` 翻转;`AppConfig.colorStyle: 'cn'|'us'`(默认 cn)+ App 设 `data-color-style` + SettingsBar 分段控件。**仅** pnl 驱动的 CSS(汇总条/YES·NO 徽章/盈亏%·额/进度条 fill·knob)改用 gain/loss;固定语义色(模拟徽章红、止损/启用绿、盘口买红卖绿、卖出红、撤单绿)不动。撤单按钮按用户要求改绿。
+  - **交叉验证**:Codex 独立审查(不共享结论)抓出滑块封顶后读数/标签/payload 仍用未钳制 N → 已统一到 `effectiveMultiplier`;配色作用域、CSS 特异性、深浅主题下翻转均确认正确。
+  - ⚠ **以上 UI 改动仅过 `tsc` + 数值验证,未在 Chrome 扩展内实跑**;待真机确认滑块拇指/填充对齐、高倍数进度条黄线右移。`npm run build` 另有一处**无关、预存**报错(`StopLossPanel.tsx` 未使用的 `DEFAULT_SLIP_PCT`,属止损滑点 UI 半成品,未触碰)。

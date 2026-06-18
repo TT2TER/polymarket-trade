@@ -1,5 +1,6 @@
 import type { I18nKey } from '@/shared/i18n';
 import { useT } from '@/sidepanel/store';
+import './ConfirmDialog.css';
 
 export interface ConfirmOrderDetails {
   title: string;
@@ -17,6 +18,7 @@ export interface ConfirmOrderDetails {
 interface ConfirmDialogProps {
   details: ConfirmOrderDetails | null;
   isSubmitting: boolean;
+  error?: string | null;
   onCancel: () => void;
   onConfirm: () => void;
 }
@@ -29,7 +31,7 @@ function formatNumber(value: number): string {
   return value.toLocaleString(undefined, { maximumFractionDigits: 4 });
 }
 
-export function ConfirmDialog({ details, isSubmitting, onCancel, onConfirm }: ConfirmDialogProps) {
+export function ConfirmDialog({ details, isSubmitting, error, onCancel, onConfirm }: ConfirmDialogProps) {
   const t = useT();
 
   if (!details) {
@@ -85,6 +87,7 @@ export function ConfirmDialog({ details, isSubmitting, onCancel, onConfirm }: Co
         </div>
 
         {details.warning ? <p className="confirm-dialog__warning">{details.warning}</p> : null}
+        {error ? <p className="confirm-dialog__warning">{error}</p> : null}
         {details.dryRun ? <p className="confirm-dialog__notice">{t('confirm.dryRunNotice')}</p> : null}
 
         <footer className="confirm-dialog__actions">

@@ -8,6 +8,7 @@ export interface Position {
   currentValue: number;
   cashPnl: number;
   percentPnl: number;
+  realizedPnl: number;
   curPrice: number;
   redeemable: boolean;
   title: string;

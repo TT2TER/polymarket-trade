@@ -16,7 +16,7 @@ import { placeSell, prepareSellOrder, type PlaceSellParams } from '@/lib/trading
 import { readConfig } from '@/shared/config';
 import type { AuthStatusResponse, RuntimeMessage, PongResponse } from '@/shared/messages';
 import { readStopLossConfigs } from '@/shared/stopLossConfig';
-import type { ClobClient, TickSize } from '@polymarket/clob-client';
+import type { ClobClient, TickSize } from '@polymarket/clob-client-v2';
 
 const MIN_PASSWORD_LENGTH = 8;
 const tickSizeCache = new Map<string, TickSize>();
@@ -107,8 +107,11 @@ async function buildStopLossSellParams(
   client: ClobClient,
   message: Extract<RuntimeMessage, { type: 'STOP_LOSS_SELL' }>,
 ): Promise<PlaceSellParams> {
-  const config = await readConfig();
+  const [config, stopLossConfigs] = await Promise.all([readConfig(), readStopLossConfigs()]);
   const tickSize = await getCachedTickSize(client, message.tokenID);
+  // 滑点优先用该仓自己的设置;未设(null)则退回全局默认。
+  const perPosition = stopLossConfigs[message.tokenID]?.slippage;
+  const slippage = perPosition != null ? perPosition : config.stopLossSlippage;
 
   return {
     tokenID: message.tokenID,
@@ -121,6 +124,8 @@ async function buildStopLossSellParams(
     bestBid: message.bestBid,
     tickSize,
     dryRun: config.dryRun,
+    // 止损滑点:向下扫单,确保急跌/深砸时也能及时成交而非被 Kill。
+    slippage,
   };
 }
 

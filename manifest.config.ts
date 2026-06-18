@@ -23,5 +23,7 @@ export default defineManifest({
     'https://clob.polymarket.com/*',
     'https://data-api.polymarket.com/*',
     'https://gamma-api.polymarket.com/*',
+    // 汇总条「今日 = 滚动 24h P/L」走此组合层 P&L 序列接口(低频拉,与 WS 行情解耦)。
+    'https://user-pnl-api.polymarket.com/*',
   ],
 });

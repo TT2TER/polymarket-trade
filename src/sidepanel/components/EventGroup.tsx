@@ -2,12 +2,15 @@ import { useMemo } from 'react';
 import type { OrderBook, Position } from '@/lib/types';
 import { useT } from '@/sidepanel/store';
 import { PositionCard } from './PositionCard';
+import './EventGroup.css';
 
 interface EventGroupProps {
   positions: Position[];
   books: Record<string, OrderBook>;
   multipliers: number[];
   lastUpdated: number;
+  openAsset: string | null;
+  onToggle: (asset: string) => void;
 }
 
 interface GroupedPositions {
@@ -37,7 +40,7 @@ function groupPositions(positions: Position[]): GroupedPositions[] {
   return [...groups.values()].sort((a, b) => a.title.localeCompare(b.title));
 }
 
-export function EventGroup({ positions, books, multipliers, lastUpdated }: EventGroupProps) {
+export function EventGroup({ positions, books, multipliers, lastUpdated, openAsset, onToggle }: EventGroupProps) {
   const t = useT();
   const groups = useMemo(() => groupPositions(positions), [positions]);
 
@@ -46,20 +49,26 @@ export function EventGroup({ positions, books, multipliers, lastUpdated }: Event
   }
 
   return (
-    <div className="event-groups">
+    <div className="pq-groups">
       {groups.map((group) => (
-        <section className="event-group" key={group.eventId}>
-          <header className="event-group__header">
-            <h2>{group.title}</h2>
-            <span>{t(group.positions.length === 1 ? 'event.positionOne' : 'event.positionMany', { count: group.positions.length })}</span>
+        <section className="pq-group" key={group.eventId}>
+          <header className="pq-group__bar">
+            <h2 className="pq-group__name">{group.title}</h2>
+            <span className="pq-group__count">
+              {t(group.positions.length === 1 ? 'event.positionOne' : 'event.positionMany', {
+                count: group.positions.length,
+              })}
+            </span>
           </header>
-          <div className="event-group__positions">
+          <div className="pq-group__rows">
             {group.positions.map((position) => (
               <PositionCard
                 book={books[position.asset] ?? null}
+                isOpen={openAsset === position.asset}
                 key={position.asset}
                 lastUpdated={lastUpdated}
                 multipliers={multipliers}
+                onToggle={() => onToggle(position.asset)}
                 position={position}
               />
             ))}

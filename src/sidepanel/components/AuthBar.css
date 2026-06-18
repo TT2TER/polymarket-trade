@@ -1,204 +1,143 @@
-.auth-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  padding: 12px;
-}
+/* 交易访问:全部走通栏(.pq-section);以下是 auth 专用的内部元素。 */
 
-.auth-bar__header {
+/* 非折叠态(导入 / 锁定)的静态头 */
+.pq-auth-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-}
-
-.auth-bar__header h2 {
-  margin: 0;
-  color: var(--text);
+  gap: 8px;
+  padding: 10px 15px;
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0;
+  color: var(--c-text);
 }
 
-.auth-bar__header p {
-  overflow-wrap: anywhere;
-  margin: 4px 0 0;
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.auth-bar__status {
-  flex: 0 0 auto;
-  border: 1px solid transparent;
-  border-radius: var(--radius-pill);
-  padding: 3px 8px;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.auth-bar__auth-ok,
-.auth-bar__auth-warn {
-  margin: 0;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  padding: 7px 9px;
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.auth-bar__auth-ok,
-.auth-bar__status--ok {
-  border-color: color-mix(in srgb, var(--pos) 40%, transparent);
-  background: var(--pos-soft);
-  color: var(--pos);
-}
-
-.auth-bar__auth-warn,
-.auth-bar__status--locked {
-  border-color: color-mix(in srgb, var(--text-muted) 34%, var(--border));
-  background: var(--neutral-soft);
-  color: var(--text-muted);
-}
-
-.auth-bar__status--off {
-  border-color: color-mix(in srgb, var(--neg) 36%, transparent);
-  background: var(--neg-soft);
-  color: var(--neg);
-}
-
-.auth-bar__address {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  padding: 9px 10px;
-}
-
-.auth-bar__address span,
-.auth-bar__address small,
-.auth-bar__form label {
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.auth-bar__address strong {
-  overflow-wrap: anywhere;
-  color: var(--text);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.auth-bar__form {
+.pq-auth-form {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.auth-bar__form--inline {
+.pq-auth-form--inline {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
   align-items: center;
 }
 
-.auth-bar__form label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.auth-bar input {
-  width: 100%;
-  min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  color: var(--text);
-  outline: none;
-  padding: 8px 9px;
-}
-
-.auth-bar input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--ring);
-}
-
-.auth-bar__secret-row {
+.pq-secret-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
 }
 
-.auth-bar__primary,
-.auth-bar__secondary,
-.auth-bar__danger,
-.auth-bar__secret-row button {
-  border-radius: var(--radius-sm);
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.auth-bar__primary {
-  align-self: flex-end;
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: var(--text-on-accent);
-}
-
-.auth-bar__primary:hover {
-  border-color: var(--accent-hover);
-  background: var(--accent-hover);
-}
-
-.auth-bar__secondary,
-.auth-bar__secret-row button {
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text);
-}
-
-.auth-bar__secondary:hover,
-.auth-bar__secret-row button:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.auth-bar__danger {
-  border: 1px solid color-mix(in srgb, var(--neg) 42%, var(--border));
-  background: transparent;
-  color: var(--neg);
-}
-
-.auth-bar__danger:hover {
-  border-color: var(--neg);
-  background: var(--neg-soft);
-}
-
-.auth-bar__actions {
+/* 解锁态:交易已启用卡 + 地址格 */
+.pq-auth-card {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 11px;
+  border: 1px solid var(--t-down-bd);
+  border-radius: var(--pq-radius-card);
+  background: var(--t-down-bg);
+  padding: 12px;
+}
+
+.pq-auth-card--warn {
+  border-color: var(--t-up-bd);
+  background: var(--t-up-bg);
+}
+
+.pq-auth-card__icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--c-down);
+  color: var(--c-on-accent);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.pq-auth-card--warn .pq-auth-card__icon {
+  background: var(--c-up);
+}
+
+.pq-auth-card__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pq-auth-card__title {
+  color: var(--c-down);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.pq-auth-card--warn .pq-auth-card__title {
+  color: var(--c-up);
+}
+
+.pq-auth-card__sub {
+  color: var(--c-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.pq-auth-cells {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 
-.auth-bar__error {
+.pq-auth-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--pq-radius-input);
+  background: var(--c-cell);
+  padding: 9px 10px;
+  min-width: 0;
+}
+
+.pq-auth-cell__label {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.5px;
+  color: var(--c-muted2);
+  text-transform: uppercase;
+}
+
+.pq-auth-cell__val {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-text);
+  overflow-wrap: anywhere;
+}
+
+.pq-auth-note {
   margin: 0;
-  border: 1px solid color-mix(in srgb, var(--neg) 42%, var(--border));
-  border-radius: var(--radius-sm);
-  background: var(--neg-soft);
-  color: var(--neg);
-  padding: 8px 10px;
-  font-size: 12px;
+  font-size: 10px;
+  color: var(--c-muted2);
   line-height: 1.4;
 }
 
-.auth-bar button:disabled {
-  cursor: default;
-  opacity: 0.65;
+.pq-auth-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.pq-auth-foot {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.2px;
+  color: var(--c-muted2);
+  line-height: 1.4;
 }

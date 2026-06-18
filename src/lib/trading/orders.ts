@@ -1,4 +1,4 @@
-import { OrderType, Side, type ClobClient, type TickSize, type UserOrder } from '@polymarket/clob-client';
+import { OrderType, Side, type ClobClient, type TickSize, type UserOrderV2 } from '@polymarket/clob-client-v2';
 
 export type PlaceSellMode = 'maker' | 'taker' | 'limitN' | 'nxCost';
 
@@ -15,10 +15,12 @@ export interface PlaceSellParams {
   positionSize?: number;
   bestBid?: number;
   bestAsk?: number;
+  // 止损卖单滑点容忍(0~1):taker 限价 = bestBid×(1−slippage),向下扫单确保成交。仅止损路径传入。
+  slippage?: number;
 }
 
 export interface PreparedSellOrder {
-  userOrder: UserOrder;
+  userOrder: UserOrderV2;
   orderType: OrderType;
   postOnly: boolean;
   estAmount: number;
@@ -114,6 +116,16 @@ export function ceilToTick(price: number, tickSize: TickSize): number {
   return Number((Math.ceil(price / tick) * tick).toFixed(decimals));
 }
 
+// 向下取整到 tick:用于止损卖单的滑点限价,确保限价 ≤ 目标价、可向下扫单成交。
+export function floorToTick(price: number, tickSize: TickSize): number {
+  if (!Number.isFinite(price) || price <= 0) {
+    return 0;
+  }
+  const tick = Number(tickSize);
+  const decimals = tickDecimals(tickSize);
+  return Number((Math.floor(price / tick) * tick).toFixed(decimals));
+}
+
 // clob-client 接受的最高限价为 1 - tickSize。
 export function maxLimitPrice(tickSize: TickSize): number {
   return Number((1 - Number(tickSize)).toFixed(tickDecimals(tickSize)));
@@ -174,7 +186,12 @@ export function prepareSellOrder(params: PlaceSellParams): PreparedSellOrder {
       break;
     }
     case 'taker': {
-      price = finitePositive(params.bestBid ?? params.price, 'Best bid');
+      const rawPrice = finitePositive(params.price ?? params.bestBid, 'Best bid');
+      // 止损滑点:限价下移到 bestBid×(1−slippage) 并向下取整到 tick,FAK 向下扫多档确保成交。
+      const slippage = typeof params.slippage === 'number' && params.slippage > 0 ? Math.min(params.slippage, 0.99) : 0;
+      const slipped = slippage > 0 ? floorToTick(rawPrice * (1 - slippage), params.tickSize) : rawPrice;
+      // 低价币向下取整可能落到 0:退回原始买价(已是合法 tick),不阻断止损。
+      price = slipped > 0 ? slipped : rawPrice;
       size = finitePositive(params.size ?? positionSize, 'Order size');
       orderType = OrderType.FAK;
       break;
@@ -212,7 +229,7 @@ export function prepareSellOrder(params: PlaceSellParams): PreparedSellOrder {
     }
   }
 
-  const userOrder: UserOrder = {
+  const userOrder: UserOrderV2 = {
     tokenID,
     price,
     size,
@@ -250,6 +267,7 @@ export async function placeSell(client: ClobClient, params: PlaceSellParams): Pr
   };
 
   if (params.dryRun) {
+    // 仅本地构建+签名,不提交(预览用)。
     await client.createOrder(prepared.userOrder, options);
     return {
       ...baseResult,
@@ -257,15 +275,11 @@ export async function placeSell(client: ClobClient, params: PlaceSellParams): Pr
     };
   }
 
-  const response =
-    params.mode === 'limitN'
-      ? await client.createAndPostOrder(prepared.userOrder, options, OrderType.GTC)
-      : await client.postOrder(
-          await client.createOrder(prepared.userOrder, options),
-          prepared.orderType,
-          false,
-          prepared.postOnly,
-        );
+  // V2:统一 createOrder + postOrder,可同时处理 GTC(maker/limitN)与 FAK(taker/nxCost)——
+  // createAndPostOrder 仅支持 GTC/GTD,不能用于 FAK。
+  // ⚠ V2 postOrder 参数序为 (order, orderType, postOnly, deferExec)(与 V1 的 deferExec/postOnly 顺序相反)。
+  const signed = await client.createOrder(prepared.userOrder, options);
+  const response = await client.postOrder(signed, prepared.orderType, prepared.postOnly, false);
 
   // 失败响应不得被当作成功(H1)。
   assertOrderAccepted(response);

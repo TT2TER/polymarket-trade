@@ -1,7 +1,7 @@
 /**
  * Service Worker 环境垫片 —— 必须在任何 clob-client / ethers 相关导入之前求值。
  *
- * 背景:`@polymarket/clob-client` 经 `browser-or-node` 判断运行环境,其 `isBrowser`
+ * 背景:`@polymarket/clob-client-v2` 经 `browser-or-node` 判断运行环境,其 `isBrowser`
  * 依赖 `window.document` 是否存在。MV3 service worker 没有 `window`,会被判成 Node,
  * 进而注入浏览器 fetch 禁止的 Node 风格请求头(User-Agent / Connection / Accept-Encoding),
  * 导致鉴权请求被剥离头或 400 失败。

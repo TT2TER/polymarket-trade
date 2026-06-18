@@ -1,0 +1,127 @@
+/* 下单二次确认弹窗 */
+.confirm-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--c-bg) 70%, transparent);
+  backdrop-filter: blur(3px);
+}
+
+.confirm-dialog__panel {
+  display: flex;
+  width: 100%;
+  max-width: 360px;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--pq-radius-card);
+  background: var(--c-surface);
+  padding: 16px;
+  box-shadow: 0 12px 32px var(--c-shadow);
+}
+
+.confirm-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.confirm-dialog__header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--c-text);
+}
+
+.dry-run-pill {
+  border: 1px solid var(--t-up-bd);
+  border-radius: var(--pq-radius-badge);
+  background: var(--t-up-bg);
+  color: var(--c-up);
+  padding: 2px 7px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.confirm-dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.confirm-dialog__body div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.confirm-dialog__body span {
+  color: var(--c-muted);
+  font-size: 11px;
+}
+
+.confirm-dialog__body strong {
+  color: var(--c-text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.confirm-dialog__warning {
+  margin: 0;
+  border: 1px solid var(--t-up-bd);
+  border-radius: var(--pq-radius-input);
+  background: var(--t-up-bg);
+  color: var(--c-up);
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.confirm-dialog__notice {
+  margin: 0;
+  color: var(--c-muted2);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.confirm-dialog__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.confirm-dialog__actions button {
+  border: 1px solid var(--c-border);
+  border-radius: var(--pq-radius-input);
+  background: var(--c-cell);
+  color: var(--c-text);
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.confirm-dialog__actions button:first-child:hover {
+  border-color: var(--c-muted2);
+}
+
+.confirm-dialog__actions .confirm-dialog__confirm {
+  border-color: var(--c-blue);
+  background: var(--c-blue);
+  color: var(--c-on-accent);
+}
+
+.confirm-dialog__actions .confirm-dialog__confirm:hover {
+  border-color: var(--c-blue);
+  background: color-mix(in srgb, var(--c-blue) 86%, black);
+}
