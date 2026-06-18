@@ -75,6 +75,8 @@ const DICTIONARY = {
   'settings.themeDark': { zh: '深色', en: 'Dark' },
   'settings.themeLight': { zh: '浅色', en: 'Light' },
   'settings.hideSettled': { zh: '隐藏已结算持仓', en: 'Hide settled positions' },
+  'mode.dryRun': { zh: '模拟', en: 'Dry run' },
+  'mode.live': { zh: '实盘', en: 'Live' },
   'settings.monitoringGroup': { zh: '监控设置', en: 'Monitoring' },
   'settings.tradingGroup': { zh: '交易设置', en: 'Trading' },
   'settings.proxyWallet': { zh: '代理钱包地址', en: 'Proxy wallet address' },

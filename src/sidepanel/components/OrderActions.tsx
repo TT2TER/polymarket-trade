@@ -157,7 +157,9 @@ export function OrderActions({ position, book, multipliers }: OrderActionsProps)
     <section className="order-actions" title={disabledReason}>
       <div className="order-actions__header">
         <h4>{t('order.trade')}</h4>
-        <span>{config.dryRun ? t('order.dryRun') : t('order.maxUsd', { amount: config.maxOrderUsd })}</span>
+        <span className={`mode-pill ${config.dryRun ? 'mode-pill--dry' : 'mode-pill--live'}`}>
+          {config.dryRun ? t('order.dryRun') : t('order.maxUsd', { amount: config.maxOrderUsd })}
+        </span>
       </div>
 
       <div className="order-actions__grid">

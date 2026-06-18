@@ -120,7 +120,12 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
   return (
     <section className="settings-bar">
       <button className="settings-bar__toggle" onClick={() => setIsOpen((value) => !value)} type="button">
-        <span>{t('settings.title')}</span>
+        <span className="settings-bar__toggle-label">
+          {t('settings.title')}
+          <span className={`mode-pill ${config.dryRun ? 'mode-pill--dry' : 'mode-pill--live'}`}>
+            {config.dryRun ? t('mode.dryRun') : t('mode.live')}
+          </span>
+        </span>
         <span>{isOpen ? t('settings.hide') : t('settings.show')}</span>
       </button>
 

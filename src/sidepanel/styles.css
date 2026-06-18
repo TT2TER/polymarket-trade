@@ -674,15 +674,50 @@ input:disabled {
   overflow-wrap: anywhere;
 }
 
-.order-actions__header span,
 .dry-run-pill {
-  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+  border: 1px solid color-mix(in srgb, var(--neg) 36%, transparent);
   border-radius: var(--radius-pill);
-  background: var(--amber-soft);
-  color: var(--text-muted);
+  background: var(--neg-soft);
+  color: var(--neg);
   padding: 3px 7px;
   font-size: 10px;
   font-weight: 700;
+}
+
+/* 交易模式徽章:模拟=红,实盘=绿(并用于交易访问状态:ok=绿,warn=琥珀) */
+.mode-pill {
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.mode-pill--dry {
+  border-color: color-mix(in srgb, var(--neg) 36%, transparent);
+  background: var(--neg-soft);
+  color: var(--neg);
+}
+
+.mode-pill--live,
+.mode-pill--ok {
+  border-color: color-mix(in srgb, var(--pos) 36%, transparent);
+  background: var(--pos-soft);
+  color: var(--pos);
+}
+
+.mode-pill--warn {
+  border-color: color-mix(in srgb, var(--text-muted) 30%, var(--border));
+  background: var(--neutral-soft);
+  color: var(--text-muted);
+}
+
+.settings-bar__toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .order-actions__grid {

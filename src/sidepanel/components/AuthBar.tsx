@@ -230,24 +230,21 @@ export function AuthBar() {
     );
   }
 
+  // 解锁后:与「设置」一致的可折叠风格(全宽 toggle + 显示/隐藏),默认折叠,腾空间给持仓。
   return (
-    <section className="auth-bar auth-bar--unlocked">
-      <div className="auth-bar__compact-row">
-        <span className={`auth-bar__status ${authStatus.authenticated ? 'auth-bar__status--ok' : 'auth-bar__status--locked'}`}>
-          {authStatus.authenticated ? t('auth.tradingEnabled') : t('auth.tradingNotReady')}
+    <section className="settings-bar">
+      <button className="settings-bar__toggle" onClick={() => setExpanded((value) => !value)} type="button">
+        <span className="settings-bar__toggle-label">
+          {t('auth.title')}
+          <span className={`mode-pill ${authStatus.authenticated ? 'mode-pill--ok' : 'mode-pill--warn'}`}>
+            {authStatus.authenticated ? t('auth.tradingEnabled') : t('auth.tradingNotReady')}
+          </span>
         </span>
-        <div className="auth-bar__compact-actions">
-          <button className="auth-bar__secondary" disabled={busy} onClick={handleLock} type="button">
-            {t('auth.lock')}
-          </button>
-          <button className="auth-bar__toggle-btn" onClick={() => setExpanded((value) => !value)} type="button">
-            {expanded ? t('settings.hide') : t('settings.show')}
-          </button>
-        </div>
-      </div>
+        <span>{expanded ? t('settings.hide') : t('settings.show')}</span>
+      </button>
 
       {expanded ? (
-        <>
+        <div className="settings-form">
           <p className={authStatus.authenticated ? 'auth-bar__auth-ok' : 'auth-bar__auth-warn'}>
             {authStatus.authenticated ? t('auth.authReady') : t('auth.authFailed')}
           </p>
@@ -261,14 +258,17 @@ export function AuthBar() {
           ) : null}
 
           <div className="auth-bar__actions">
+            <button className="auth-bar__secondary" disabled={busy} onClick={handleLock} type="button">
+              {t('auth.lock')}
+            </button>
             <button className="auth-bar__danger" disabled={busy} onClick={handleForget} type="button">
               {t('auth.forgetKey')}
             </button>
           </div>
-        </>
-      ) : null}
 
-      {error !== null ? <p className="auth-bar__error">{error}</p> : null}
+          {error !== null ? <p className="auth-bar__error">{error}</p> : null}
+        </div>
+      ) : null}
     </section>
   );
 }

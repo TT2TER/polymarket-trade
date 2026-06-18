@@ -73,7 +73,7 @@ export function App() {
 
       <section className="app__body">
         <AuthBar />
-        <SettingsBar defaultOpen={!hasAddress} />
+        <SettingsBar />
 
         {!hasAddress ? (
           <div className="empty-state">{t('app.emptySetup')}</div>
