@@ -1,6 +1,14 @@
 import { FormEvent, useEffect, useState } from 'react';
 import type { Lang } from '@/shared/i18n';
+import type { ThemeMode } from '@/shared/config';
 import { useMonitorStore, useT } from '@/sidepanel/store';
+
+const THEME_MODES: ThemeMode[] = ['system', 'dark', 'light'];
+const THEME_LABEL_KEYS = {
+  system: 'settings.themeSystem',
+  dark: 'settings.themeDark',
+  light: 'settings.themeLight',
+} as const;
 
 interface SettingsBarProps {
   defaultOpen?: boolean;
@@ -26,6 +34,7 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
   const [dryRun, setDryRun] = useState(config.dryRun);
   const [maxOrderUsd, setMaxOrderUsd] = useState(String(config.maxOrderUsd));
   const [stopLossMaxUsd, setStopLossMaxUsd] = useState(String(config.stopLossMaxUsd));
+  const [hideSettled, setHideSettled] = useState(config.hideSettled);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -36,6 +45,7 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
     setDryRun(config.dryRun);
     setMaxOrderUsd(String(config.maxOrderUsd));
     setStopLossMaxUsd(String(config.stopLossMaxUsd));
+    setHideSettled(config.hideSettled);
   }, [config]);
 
   useEffect(() => {
@@ -65,6 +75,7 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
         positionsIntervalMs: intervalFromSeconds(positionsSeconds, config.positionsIntervalMs),
         booksIntervalMs: intervalFromSeconds(booksSeconds, config.booksIntervalMs),
         dryRun,
+        hideSettled,
         maxOrderUsd: Number.isFinite(parsedMaxOrderUsd) && parsedMaxOrderUsd > 0 ? parsedMaxOrderUsd : config.maxOrderUsd,
         stopLossMaxUsd:
           Number.isFinite(parsedStopLossMaxUsd) && parsedStopLossMaxUsd > 0 ? parsedStopLossMaxUsd : config.stopLossMaxUsd,
@@ -86,6 +97,20 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
     setError(null);
     try {
       await setConfig({ ...config, lang });
+    } catch (saveError) {
+      const message = saveError instanceof Error ? saveError.message : String(saveError);
+      setError(t('settings.saveFailed', { message }));
+    }
+  }
+
+  async function handleThemeChange(theme: ThemeMode): Promise<void> {
+    if (config.theme === theme) {
+      return;
+    }
+
+    setError(null);
+    try {
+      await setConfig({ ...config, theme });
     } catch (saveError) {
       const message = saveError instanceof Error ? saveError.message : String(saveError);
       setError(t('settings.saveFailed', { message }));
@@ -121,6 +146,24 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
             </div>
           </div>
 
+          <div className="settings-form__language">
+            <span>{t('settings.theme')}</span>
+            <div className="settings-form__lang-toggle">
+              {THEME_MODES.map((mode) => (
+                <button
+                  className={
+                    config.theme === mode ? 'settings-form__lang-button settings-form__lang-button--active' : 'settings-form__lang-button'
+                  }
+                  key={mode}
+                  onClick={() => void handleThemeChange(mode)}
+                  type="button"
+                >
+                  {t(THEME_LABEL_KEYS[mode])}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="settings-form__group">
             <h3>{t('settings.monitoringGroup')}</h3>
             <label>
@@ -133,6 +176,10 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
                 spellCheck={false}
                 value={address}
               />
+            </label>
+            <label className="settings-form__checkbox">
+              <input checked={hideSettled} onChange={(event) => setHideSettled(event.target.checked)} type="checkbox" />
+              <span>{t('settings.hideSettled')}</span>
             </label>
           </div>
 

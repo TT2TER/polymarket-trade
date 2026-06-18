@@ -35,9 +35,29 @@ export function App() {
     };
   }, [loadConfig, loadStopLossConfigs, startMonitoring, stopMonitoring]);
 
+  // 主题:system 跟随操作系统(监听 prefers-color-scheme 变化);dark/light 固定。
+  useEffect(() => {
+    const root = document.documentElement;
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const apply = () => {
+      const resolved = config.theme === 'system' ? (media.matches ? 'dark' : 'light') : config.theme;
+      root.setAttribute('data-theme', resolved);
+    };
+    apply();
+    if (config.theme === 'system') {
+      media.addEventListener('change', apply);
+      return () => media.removeEventListener('change', apply);
+    }
+    return undefined;
+  }, [config.theme]);
+
   const hasAddress = config.address.length > 0;
   const lastUpdated = snapshot?.lastUpdated ?? 0;
   const lastUpdatedText = formatLastUpdated(lastUpdated, config.lang, t('app.waitingSnapshot'));
+  // 隐藏已结算(可赎回)持仓:这些是市场已结算但未赎回的代币,默认显示,可在设置隐藏。
+  const visiblePositions = (snapshot?.positions ?? []).filter(
+    (position) => !config.hideSettled || !position.redeemable,
+  );
 
   return (
     <main className="app">
@@ -75,7 +95,7 @@ export function App() {
               books={snapshot?.books ?? {}}
               lastUpdated={lastUpdated}
               multipliers={config.multipliers}
-              positions={snapshot?.positions ?? []}
+              positions={visiblePositions}
             />
           </>
         )}

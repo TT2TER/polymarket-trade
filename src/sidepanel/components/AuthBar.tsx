@@ -39,6 +39,8 @@ export function AuthBar() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // 解锁后默认折叠,只露状态徽章/锁定/展开按钮,给下方持仓让出空间。
+  const [expanded, setExpanded] = useState(false);
 
   const addressText = config.address.length > 0 ? config.address : t('auth.noWallet');
 
@@ -229,35 +231,42 @@ export function AuthBar() {
   }
 
   return (
-    <section className="auth-bar">
-      <div className="auth-bar__header">
-        <div>
-          <h2>{t('auth.title')}</h2>
-          <p>{addressText}</p>
+    <section className="auth-bar auth-bar--unlocked">
+      <div className="auth-bar__compact-row">
+        <span className={`auth-bar__status ${authStatus.authenticated ? 'auth-bar__status--ok' : 'auth-bar__status--locked'}`}>
+          {authStatus.authenticated ? t('auth.tradingEnabled') : t('auth.tradingNotReady')}
+        </span>
+        <div className="auth-bar__compact-actions">
+          <button className="auth-bar__secondary" disabled={busy} onClick={handleLock} type="button">
+            {t('auth.lock')}
+          </button>
+          <button className="auth-bar__toggle-btn" onClick={() => setExpanded((value) => !value)} type="button">
+            {expanded ? t('settings.hide') : t('settings.show')}
+          </button>
         </div>
-        <span className="auth-bar__status auth-bar__status--ok">{t('auth.unlocked')}</span>
       </div>
 
-      <p className={authStatus.authenticated ? 'auth-bar__auth-ok' : 'auth-bar__auth-warn'}>
-        {authStatus.authenticated ? t('auth.authReady') : t('auth.authFailed')}
-      </p>
+      {expanded ? (
+        <>
+          <p className={authStatus.authenticated ? 'auth-bar__auth-ok' : 'auth-bar__auth-warn'}>
+            {authStatus.authenticated ? t('auth.authReady') : t('auth.authFailed')}
+          </p>
 
-      {authStatus.signerAddress !== undefined ? (
-        <div className="auth-bar__address">
-          <span>{t('auth.signerAddress')}</span>
-          <strong>{authStatus.signerAddress}</strong>
-          <small>{t('auth.signerNote')}</small>
-        </div>
+          {authStatus.signerAddress !== undefined ? (
+            <div className="auth-bar__address">
+              <span>{t('auth.signerAddress')}</span>
+              <strong>{authStatus.signerAddress}</strong>
+              <small>{t('auth.signerNote')}</small>
+            </div>
+          ) : null}
+
+          <div className="auth-bar__actions">
+            <button className="auth-bar__danger" disabled={busy} onClick={handleForget} type="button">
+              {t('auth.forgetKey')}
+            </button>
+          </div>
+        </>
       ) : null}
-
-      <div className="auth-bar__actions">
-        <button className="auth-bar__secondary" disabled={busy} onClick={handleLock} type="button">
-          {t('auth.lock')}
-        </button>
-        <button className="auth-bar__danger" disabled={busy} onClick={handleForget} type="button">
-          {t('auth.forgetKey')}
-        </button>
-      </div>
 
       {error !== null ? <p className="auth-bar__error">{error}</p> : null}
     </section>

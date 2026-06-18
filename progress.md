@@ -229,6 +229,12 @@ i18n:AuthBar 文案集中在 `TEXT` 常量,便于 P6 抽取。
 - **Bug 修复**:模拟交易开关文字不居中 → `.settings-form__checkbox` 改横向对齐(row + align-items center)。
 - 所有 var() 引用均在 :root 定义;构建 + 三自测通过。视觉「完全一致」待用户加载 dist 肉眼确认后微调。
 
+### 第三轮反馈(2026-06-18,用户看主题截图后)
+- **暗色色差校准**:原偏蓝(#0b0e16/#141a24)→ 改为贴近 Polymarket 的近黑中性(`--bg #0e0f13`/`--surface #17181d`/`--border #2a2c34`)。
+- **主题模式 跟随系统/深色/浅色**:`AppConfig.theme: 'system'|'dark'|'light'`(默认 system)。App 用 `matchMedia('(prefers-color-scheme)')` 解析并监听,设 `documentElement[data-theme]`;styles.css 将 token 拆为 `:root[data-theme='dark']` 与 `[data-theme='light']` 两套(共享品牌色,派生 soft 色按主题 surface 实时混合)。SettingsBar 加 系统/深色/浅色 切换。
+- **已结算持仓为何仍显示**:data-api 只要还持有结果代币就返回该持仓,结算后直到**赎回**才消失(失败仓价值≈0 仍在)。加 `hideSettled` 设置(默认显示)按 `redeemable` 过滤;并解释给用户。
+- **交易访问解锁后默认折叠**:AuthBar 解锁态改为紧凑行(状态徽章 + 锁定 + 展开/收起),展开才显示 signer 地址/忘记密钥,给下方持仓让出空间。
+
 ## 7. 变更日志
 
 - 2026-06-17:需求确认完成,确立架构与止损公式,启动 P0 脚手架。

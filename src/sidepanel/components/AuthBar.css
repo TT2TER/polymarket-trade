@@ -202,3 +202,38 @@
   cursor: default;
   opacity: 0.65;
 }
+
+/* 解锁后的折叠态:一行容纳状态徽章 + 锁定 + 展开/收起,给下方持仓让空间 */
+.auth-bar--unlocked {
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+.auth-bar__compact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.auth-bar__compact-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.auth-bar__toggle-btn {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.auth-bar__toggle-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}

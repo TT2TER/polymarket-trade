@@ -1,8 +1,12 @@
 import type { Lang } from './i18n';
 
+export type ThemeMode = 'system' | 'dark' | 'light';
+
 export interface AppConfig {
   address: string;
   lang: Lang;
+  theme: ThemeMode;
+  hideSettled: boolean;
   positionsIntervalMs: number;
   booksIntervalMs: number;
   multipliers: number[];
@@ -16,6 +20,8 @@ const CONFIG_KEY = 'appConfig';
 export const DEFAULT_CONFIG: AppConfig = {
   address: '',
   lang: 'zh',
+  theme: 'system',
+  hideSettled: false,
   positionsIntervalMs: 15_000,
   booksIntervalMs: 5_000,
   multipliers: [2, 3, 5],
@@ -52,10 +58,16 @@ function normalizeLang(value: unknown): Lang {
   return value === 'zh' || value === 'en' ? value : DEFAULT_CONFIG.lang;
 }
 
+function normalizeTheme(value: unknown): ThemeMode {
+  return value === 'system' || value === 'dark' || value === 'light' ? value : DEFAULT_CONFIG.theme;
+}
+
 function normalizeConfig(value: Partial<AppConfig> | undefined): AppConfig {
   return {
     address: typeof value?.address === 'string' ? value.address : DEFAULT_CONFIG.address,
     lang: normalizeLang(value?.lang),
+    theme: normalizeTheme(value?.theme),
+    hideSettled: typeof value?.hideSettled === 'boolean' ? value.hideSettled : DEFAULT_CONFIG.hideSettled,
     positionsIntervalMs: clampInterval(
       value?.positionsIntervalMs,
       MIN_POSITIONS_INTERVAL_MS,
