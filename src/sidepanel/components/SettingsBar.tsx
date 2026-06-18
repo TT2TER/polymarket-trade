@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import type { Lang } from '@/shared/i18n';
-import type { ThemeMode } from '@/shared/config';
+import type { ColorStyle, ThemeMode } from '@/shared/config';
 import { useMonitorStore, useT } from '@/sidepanel/store';
 
 const THEME_MODES: ThemeMode[] = ['system', 'dark', 'light'];
@@ -8,6 +8,12 @@ const THEME_LABEL_KEYS = {
   system: 'settings.themeSystem',
   dark: 'settings.themeDark',
   light: 'settings.themeLight',
+} as const;
+
+const COLOR_STYLES: ColorStyle[] = ['cn', 'us'];
+const COLOR_STYLE_LABEL_KEYS = {
+  cn: 'settings.colorStyleCn',
+  us: 'settings.colorStyleUs',
 } as const;
 
 interface SettingsBarProps {
@@ -18,34 +24,27 @@ function isValidAddress(address: string): boolean {
   return address.startsWith('0x') && address.length === 42;
 }
 
-function intervalFromSeconds(value: string, fallbackMs: number): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed * 1000) : fallbackMs;
-}
-
 export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
   const t = useT();
   const config = useMonitorStore((state) => state.config);
   const setConfig = useMonitorStore((state) => state.setConfig);
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [address, setAddress] = useState(config.address);
-  const [positionsSeconds, setPositionsSeconds] = useState(String(config.positionsIntervalMs / 1000));
-  const [booksSeconds, setBooksSeconds] = useState(String(config.booksIntervalMs / 1000));
   const [dryRun, setDryRun] = useState(config.dryRun);
   const [maxOrderUsd, setMaxOrderUsd] = useState(String(config.maxOrderUsd));
   const [stopLossMaxUsd, setStopLossMaxUsd] = useState(String(config.stopLossMaxUsd));
   const [hideSettled, setHideSettled] = useState(config.hideSettled);
+  const [showSummary, setShowSummary] = useState(config.showSummary);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setAddress(config.address);
-    setPositionsSeconds(String(config.positionsIntervalMs / 1000));
-    setBooksSeconds(String(config.booksIntervalMs / 1000));
     setDryRun(config.dryRun);
     setMaxOrderUsd(String(config.maxOrderUsd));
     setStopLossMaxUsd(String(config.stopLossMaxUsd));
     setHideSettled(config.hideSettled);
+    setShowSummary(config.showSummary);
   }, [config]);
 
   useEffect(() => {
@@ -69,13 +68,13 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
     try {
       const parsedMaxOrderUsd = Number(maxOrderUsd);
       const parsedStopLossMaxUsd = Number(stopLossMaxUsd);
+      // 轮询间隔不在 UI 暴露,沿用 config 现值。止损滑点已移到每仓(止损 Tab)。
       await setConfig({
         ...config,
         address: normalizedAddress,
-        positionsIntervalMs: intervalFromSeconds(positionsSeconds, config.positionsIntervalMs),
-        booksIntervalMs: intervalFromSeconds(booksSeconds, config.booksIntervalMs),
         dryRun,
         hideSettled,
+        showSummary,
         maxOrderUsd: Number.isFinite(parsedMaxOrderUsd) && parsedMaxOrderUsd > 0 ? parsedMaxOrderUsd : config.maxOrderUsd,
         stopLossMaxUsd:
           Number.isFinite(parsedStopLossMaxUsd) && parsedStopLossMaxUsd > 0 ? parsedStopLossMaxUsd : config.stopLossMaxUsd,
@@ -117,48 +116,53 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
     }
   }
 
+  async function handleColorStyleChange(colorStyle: ColorStyle): Promise<void> {
+    if (config.colorStyle === colorStyle) {
+      return;
+    }
+
+    setError(null);
+    try {
+      await setConfig({ ...config, colorStyle });
+    } catch (saveError) {
+      const message = saveError instanceof Error ? saveError.message : String(saveError);
+      setError(t('settings.saveFailed', { message }));
+    }
+  }
+
   return (
-    <section className="settings-bar">
-      <button className="settings-bar__toggle" onClick={() => setIsOpen((value) => !value)} type="button">
-        <span className="settings-bar__toggle-label">
+    <section className="pq-section">
+      <button className="pq-section__toggle" onClick={() => setIsOpen((value) => !value)} type="button">
+        <span className="pq-section__label">
           {t('settings.title')}
-          <span className={`mode-pill ${config.dryRun ? 'mode-pill--dry' : 'mode-pill--live'}`}>
+          <span className={`pq-pill ${config.dryRun ? 'pq-pill--dry' : 'pq-pill--live'}`}>
             {config.dryRun ? t('mode.dryRun') : t('mode.live')}
           </span>
         </span>
-        <span>{isOpen ? t('settings.hide') : t('settings.show')}</span>
+        <span className={`pq-section__chevron ${isOpen ? 'pq-section__chevron--open' : ''}`}>▾</span>
       </button>
 
       {isOpen ? (
-        <form className="settings-form" onSubmit={handleSubmit}>
-          <div className="settings-form__language">
-            <span>{t('settings.language')}</span>
-            <div className="settings-form__lang-toggle">
-              <button
-                className={config.lang === 'zh' ? 'settings-form__lang-button settings-form__lang-button--active' : 'settings-form__lang-button'}
-                onClick={() => void handleLangChange('zh')}
-                type="button"
-              >
-                中
-              </button>
-              <button
-                className={config.lang === 'en' ? 'settings-form__lang-button settings-form__lang-button--active' : 'settings-form__lang-button'}
-                onClick={() => void handleLangChange('en')}
-                type="button"
-              >
-                EN
-              </button>
-            </div>
-          </div>
+        <form className="pq-section__body" onSubmit={handleSubmit}>
+          <label className="pq-field">
+            <span>{t('settings.proxyWallet')}</span>
+            <input
+              autoCapitalize="off"
+              autoCorrect="off"
+              className="pq-input"
+              onChange={(event) => setAddress(event.target.value)}
+              placeholder="0x..."
+              spellCheck={false}
+              value={address}
+            />
+          </label>
 
-          <div className="settings-form__language">
+          <label className="pq-field">
             <span>{t('settings.theme')}</span>
-            <div className="settings-form__lang-toggle">
+            <div className="pq-seg pq-seg--full">
               {THEME_MODES.map((mode) => (
                 <button
-                  className={
-                    config.theme === mode ? 'settings-form__lang-button settings-form__lang-button--active' : 'settings-form__lang-button'
-                  }
+                  className={`pq-seg__btn ${config.theme === mode ? 'pq-seg__btn--active' : ''}`}
                   key={mode}
                   onClick={() => void handleThemeChange(mode)}
                   type="button"
@@ -167,65 +171,107 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
                 </button>
               ))}
             </div>
-          </div>
+          </label>
 
-          <div className="settings-form__group">
-            <h3>{t('settings.monitoringGroup')}</h3>
-            <label>
-              <span>{t('settings.proxyWallet')}</span>
-              <input
-                autoCapitalize="off"
-                autoCorrect="off"
-                onChange={(event) => setAddress(event.target.value)}
-                placeholder="0x..."
-                spellCheck={false}
-                value={address}
-              />
-            </label>
-            <label className="settings-form__checkbox">
-              <input checked={hideSettled} onChange={(event) => setHideSettled(event.target.checked)} type="checkbox" />
+          <label className="pq-field">
+            <span>{t('settings.colorStyle')}</span>
+            <div className="pq-seg pq-seg--full">
+              {COLOR_STYLES.map((style) => (
+                <button
+                  className={`pq-seg__btn ${config.colorStyle === style ? 'pq-seg__btn--active' : ''}`}
+                  key={style}
+                  onClick={() => void handleColorStyleChange(style)}
+                  type="button"
+                >
+                  {t(COLOR_STYLE_LABEL_KEYS[style])}
+                </button>
+              ))}
+            </div>
+          </label>
+
+          <div className="pq-field-row">
+            <div className="pq-field-row" style={{ gap: 8 }}>
+              <span className="pq-label">{t('settings.language')}</span>
+              <div className="pq-seg">
+                <button
+                  className={`pq-seg__btn ${config.lang === 'zh' ? 'pq-seg__btn--active' : ''}`}
+                  onClick={() => void handleLangChange('zh')}
+                  type="button"
+                >
+                  中文
+                </button>
+                <button
+                  className={`pq-seg__btn ${config.lang === 'en' ? 'pq-seg__btn--active' : ''}`}
+                  onClick={() => void handleLangChange('en')}
+                  type="button"
+                >
+                  EN
+                </button>
+              </div>
+            </div>
+            <label className="pq-toggle-field">
+              <span className="pq-switch pq-switch--neutral">
+                <input checked={hideSettled} onChange={(event) => setHideSettled(event.target.checked)} type="checkbox" />
+                <span className="pq-switch__track" />
+                <span className="pq-switch__knob" />
+              </span>
               <span>{t('settings.hideSettled')}</span>
             </label>
           </div>
 
-          <div className="settings-form__intervals">
-            <label>
-              <span>{t('settings.positionsPoll')}</span>
-              <input min="1" onChange={(event) => setPositionsSeconds(event.target.value)} step="1" type="number" value={positionsSeconds} />
-            </label>
-            <label>
-              <span>{t('settings.booksPoll')}</span>
-              <input min="1" onChange={(event) => setBooksSeconds(event.target.value)} step="1" type="number" value={booksSeconds} />
-            </label>
-          </div>
+          <label className="pq-toggle-field">
+            <span className="pq-switch pq-switch--neutral">
+              <input checked={showSummary} onChange={(event) => setShowSummary(event.target.checked)} type="checkbox" />
+              <span className="pq-switch__track" />
+              <span className="pq-switch__knob" />
+            </span>
+            <span>{t('settings.showSummary')}</span>
+          </label>
 
-          <div className="settings-form__group">
-            <h3>{t('settings.tradingGroup')}</h3>
-            <div className="settings-form__trading">
-              <label className="settings-form__checkbox">
+          <hr className="pq-divider" />
+
+          <div className="pq-field-row">
+            <span className="pq-strong">{t('settings.tradingGroup')}</span>
+            <label className="pq-toggle-field">
+              <span className="pq-switch">
                 <input checked={dryRun} onChange={(event) => setDryRun(event.target.checked)} type="checkbox" />
-                <span>{t('settings.dryRun')}</span>
-              </label>
-              <label>
-                <span>{t('settings.maxOrderUsd')}</span>
-                <input min="0.01" onChange={(event) => setMaxOrderUsd(event.target.value)} step="1" type="number" value={maxOrderUsd} />
-              </label>
-              <label>
-                <span>{t('settings.stopLossMaxUsd')}</span>
-                <input
-                  min="0.01"
-                  onChange={(event) => setStopLossMaxUsd(event.target.value)}
-                  step="1"
-                  type="number"
-                  value={stopLossMaxUsd}
-                />
-              </label>
-            </div>
+                <span className="pq-switch__track" />
+                <span className="pq-switch__knob" />
+              </span>
+              <span style={{ color: dryRun ? 'var(--c-up)' : 'var(--c-down)' }}>
+                {dryRun ? t('mode.dryRun') : t('mode.live')}
+              </span>
+            </label>
           </div>
 
-          {error ? <p className="settings-form__error">{error}</p> : null}
+          <div className="pq-grid-2">
+            <label className="pq-field">
+              <span>{t('settings.maxOrderUsd')}</span>
+              <input
+                className="pq-input"
+                min="0.01"
+                onChange={(event) => setMaxOrderUsd(event.target.value)}
+                step="1"
+                type="number"
+                value={maxOrderUsd}
+              />
+            </label>
+            <label className="pq-field">
+              <span>{t('settings.stopLossMaxUsd')}</span>
+              <input
+                className="pq-input"
+                min="0.01"
+                onChange={(event) => setStopLossMaxUsd(event.target.value)}
+                step="1"
+                type="number"
+                value={stopLossMaxUsd}
+              />
+            </label>
+          </div>
 
-          <button className="settings-form__save" disabled={isSaving} type="submit">
+          {error ? <p className="pq-form-error">{error}</p> : null}
+
+          <button className="pq-btn pq-btn--primary pq-btn--block" disabled={isSaving} type="submit">
             {isSaving ? t('settings.saving') : t('settings.save')}
           </button>
         </form>

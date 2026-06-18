@@ -24,6 +24,7 @@ const DICTIONARY = {
 
   'ops.targetPrices': { zh: '回本翻倍价', en: 'Target prices' },
   'ops.capped': { zh: '不可达', en: 'capped' },
+  'ops.settleMultiple': { zh: '封盘 {n}×', en: 'Settle {n}×' },
 
   'summary.totalValue': { zh: '总持仓价值', en: 'Total value' },
   'summary.today': { zh: '今日 (24h)', en: 'Today (24h)' },
@@ -107,6 +108,9 @@ const DICTIONARY = {
   'settings.themeSystem': { zh: '跟随系统', en: 'System' },
   'settings.themeDark': { zh: '深色', en: 'Dark' },
   'settings.themeLight': { zh: '浅色', en: 'Light' },
+  'settings.colorStyle': { zh: '涨跌配色', en: 'Up/Down colors' },
+  'settings.colorStyleCn': { zh: 'A股(红涨绿跌)', en: 'A-share (red up)' },
+  'settings.colorStyleUs': { zh: '美股(绿涨红跌)', en: 'US (green up)' },
   'settings.hideSettled': { zh: '隐藏已结算持仓', en: 'Hide settled positions' },
   'mode.dryRun': { zh: '模拟', en: 'Dry run' },
   'mode.live': { zh: '实盘', en: 'Live' },
@@ -118,6 +122,7 @@ const DICTIONARY = {
   'settings.dryRun': { zh: '模拟交易', en: 'Dry run' },
   'settings.maxOrderUsd': { zh: '最大订单 USD', en: 'Max order USD' },
   'settings.stopLossMaxUsd': { zh: '止损最大 USD', en: 'Stop-loss max USD' },
+  'settings.stopLossSlippage': { zh: '止损滑点 %', en: 'Stop-loss slippage %' },
   'settings.save': { zh: '保存', en: 'Save' },
   'settings.saving': { zh: '保存中...', en: 'Saving...' },
   'settings.invalidAddress': {
@@ -225,6 +230,7 @@ const DICTIONARY = {
   'stopLoss.window': { zh: '窗口', en: 'Window' },
   'stopLoss.drop': { zh: '跌幅', en: 'Drop' },
   'stopLoss.sell': { zh: '卖出', en: 'Sell' },
+  'stopLoss.slippage': { zh: '滑点', en: 'Slippage' },
   'stopLoss.armButton': { zh: '武装止损', en: 'Arm stop-loss' },
   'stopLoss.update': { zh: '更新参数', en: 'Update params' },
   'stopLoss.sellShares': { zh: '≈{shares} 股', en: '≈{shares} sh' },

@@ -1,0 +1,54 @@
+/* 展开操作区容器 */
+.pq-ops {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid var(--c-border-soft);
+  background: var(--c-surface);
+  padding: 12px 15px 14px;
+}
+
+/* 回本翻倍价 chips */
+.pq-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pq-chips__label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: var(--c-muted2);
+}
+
+.pq-chips__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pq-chip {
+  border: 1px solid var(--t-target-bd);
+  border-radius: var(--pq-radius-input);
+  background: var(--t-target-bg);
+  color: var(--c-target);
+  padding: 5px 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.pq-chip--capped {
+  border-color: var(--c-border);
+  background: var(--c-cell);
+  color: var(--c-muted2);
+}
+
+/* 封盘倍率:用蓝色(结算语义)区别于黄色目标价 chip */
+.pq-chip--settle {
+  border-color: var(--t-blue-bd);
+  background: var(--t-blue-bg);
+  color: var(--c-blue);
+}

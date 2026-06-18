@@ -1,18 +1,24 @@
 import type { Lang } from './i18n';
 
 export type ThemeMode = 'system' | 'dark' | 'light';
+// 盈亏配色风格:cn = A 股(红涨绿跌);us = 美股(绿涨红跌)。
+export type ColorStyle = 'cn' | 'us';
 
 export interface AppConfig {
   address: string;
   lang: Lang;
   theme: ThemeMode;
+  colorStyle: ColorStyle;
   hideSettled: boolean;
+  showSummary: boolean;
   positionsIntervalMs: number;
   booksIntervalMs: number;
   multipliers: number[];
   dryRun: boolean;
   maxOrderUsd: number;
   stopLossMaxUsd: number;
+  // 止损卖单滑点容忍:FAK 限价 = bestBid×(1−slippage),向下扫单确保及时成交(0~0.5)。
+  stopLossSlippage: number;
 }
 
 const CONFIG_KEY = 'appConfig';
@@ -21,13 +27,16 @@ export const DEFAULT_CONFIG: AppConfig = {
   address: '',
   lang: 'zh',
   theme: 'system',
+  colorStyle: 'cn',
   hideSettled: false,
+  showSummary: true,
   positionsIntervalMs: 15_000,
   booksIntervalMs: 5_000,
   multipliers: [2, 3, 5],
   dryRun: true,
   maxOrderUsd: 100,
   stopLossMaxUsd: 1000,
+  stopLossSlippage: 0.05,
 };
 
 // 轮询间隔下限,防止 storage 被改成 0/负数/非有限值导致疯狂轮询打爆 API。
@@ -54,6 +63,11 @@ function clampPositiveNumber(value: unknown, min: number, fallback: number): num
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.max(value, min) : fallback;
 }
 
+// 容忍 0(无滑点)的比例字段:落在 [min,max] 用之,否则回退默认。
+function clampFraction(value: unknown, min: number, max: number, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max ? value : fallback;
+}
+
 function normalizeLang(value: unknown): Lang {
   return value === 'zh' || value === 'en' ? value : DEFAULT_CONFIG.lang;
 }
@@ -62,12 +76,18 @@ function normalizeTheme(value: unknown): ThemeMode {
   return value === 'system' || value === 'dark' || value === 'light' ? value : DEFAULT_CONFIG.theme;
 }
 
+function normalizeColorStyle(value: unknown): ColorStyle {
+  return value === 'cn' || value === 'us' ? value : DEFAULT_CONFIG.colorStyle;
+}
+
 function normalizeConfig(value: Partial<AppConfig> | undefined): AppConfig {
   return {
     address: typeof value?.address === 'string' ? value.address : DEFAULT_CONFIG.address,
     lang: normalizeLang(value?.lang),
     theme: normalizeTheme(value?.theme),
+    colorStyle: normalizeColorStyle(value?.colorStyle),
     hideSettled: typeof value?.hideSettled === 'boolean' ? value.hideSettled : DEFAULT_CONFIG.hideSettled,
+    showSummary: typeof value?.showSummary === 'boolean' ? value.showSummary : DEFAULT_CONFIG.showSummary,
     positionsIntervalMs: clampInterval(
       value?.positionsIntervalMs,
       MIN_POSITIONS_INTERVAL_MS,
@@ -78,6 +98,7 @@ function normalizeConfig(value: Partial<AppConfig> | undefined): AppConfig {
     dryRun: typeof value?.dryRun === 'boolean' ? value.dryRun : DEFAULT_CONFIG.dryRun,
     maxOrderUsd: clampPositiveNumber(value?.maxOrderUsd, MIN_MAX_ORDER_USD, DEFAULT_CONFIG.maxOrderUsd),
     stopLossMaxUsd: clampPositiveNumber(value?.stopLossMaxUsd, MIN_MAX_ORDER_USD, DEFAULT_CONFIG.stopLossMaxUsd),
+    stopLossSlippage: clampFraction(value?.stopLossSlippage, 0, 0.5, DEFAULT_CONFIG.stopLossSlippage),
   };
 }
 

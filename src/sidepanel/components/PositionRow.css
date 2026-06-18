@@ -1,0 +1,272 @@
+/* 折叠密集行(可点击展开) */
+.pq-row {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 6px;
+  border: 0;
+  border-bottom: 1px solid var(--c-border);
+  background: transparent;
+  color: var(--c-text);
+  padding: 11px 15px;
+  text-align: left;
+}
+
+.pq-row:hover {
+  background: var(--c-rowhover);
+}
+
+.pq-row--open {
+  background: var(--c-rowhover);
+}
+
+/* 行 1:标签 + 标题 + 盈亏% + chevron */
+.pq-row__l1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pq-tag {
+  flex: 0 0 auto;
+  border-radius: var(--pq-radius-badge);
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.pq-tag--up {
+  background: var(--t-gain-bg);
+  color: var(--c-gain);
+  border: 1px solid var(--t-gain-bd);
+}
+
+.pq-tag--down {
+  background: var(--t-loss-bg);
+  color: var(--c-loss);
+  border: 1px solid var(--t-loss-bd);
+}
+
+.pq-row__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pq-row__pnl {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.pq-row__pnl--up {
+  color: var(--c-gain);
+}
+
+.pq-row__pnl--down {
+  color: var(--c-loss);
+}
+
+.pq-row__chev {
+  flex: 0 0 auto;
+  color: var(--c-muted2);
+  font-size: 10px;
+  transition: transform 160ms ease;
+}
+
+.pq-row__chev--open {
+  transform: rotate(180deg);
+}
+
+/* 行 2:份额@均价→现价  ·  价值·盈亏 */
+.pq-row__l2 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pq-row__nums {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pq-muted {
+  color: var(--c-muted);
+}
+
+.pq-arrow {
+  color: var(--c-muted2);
+}
+
+.pq-strongnum {
+  color: var(--c-text-strong);
+  font-weight: 600;
+}
+
+.pq-row__value {
+  flex: 0 0 auto;
+  color: var(--c-muted);
+}
+
+.pq-dot {
+  color: var(--c-muted2);
+}
+
+/* 行 3:进度条 / 止损徽章 */
+.pq-row__l3 {
+  display: flex;
+}
+
+.pq-bar {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pq-bar__track {
+  position: relative;
+  height: 5px;
+  border-radius: var(--pq-radius-bar);
+  background: var(--c-track);
+}
+
+.pq-bar__fill {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: var(--pq-radius-bar);
+}
+
+.pq-bar__fill--up {
+  background: var(--c-gain);
+}
+
+.pq-bar__fill--down {
+  background: var(--c-loss);
+}
+
+/* 目标黄线(模式 A,钉 70%) */
+.pq-bar__target {
+  position: absolute;
+  top: -2px;
+  width: 2px;
+  height: 9px;
+  border-radius: 1px;
+  background: var(--c-target);
+  transform: translateX(-1px);
+  z-index: 2;
+}
+
+/* 现价圆点(在填充末端) */
+.pq-bar__knob {
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 2px var(--c-bg);
+  z-index: 1;
+}
+
+.pq-bar__knob--up {
+  background: var(--c-gain);
+}
+
+.pq-bar__knob--down {
+  background: var(--c-loss);
+}
+
+.pq-bar__labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.5px;
+  color: var(--c-muted2);
+}
+
+.pq-bar__label {
+  white-space: nowrap;
+}
+
+.pq-bar__label--target {
+  color: var(--c-target);
+}
+
+/* 已结算 · 可赎回卡 */
+.pq-settled {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border-bottom: 1px solid var(--c-border);
+  padding: 11px 15px;
+  opacity: 0.92;
+}
+
+.pq-settled__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pq-settled__title {
+  overflow: hidden;
+  color: var(--c-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pq-settled__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+}
+
+.pq-settled__redeem {
+  align-self: flex-start;
+  border: 1px solid var(--t-blue-bd);
+  border-radius: var(--pq-radius-input);
+  background: var(--t-blue-bg);
+  color: var(--c-blue);
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pq-settled__redeem:hover {
+  border-color: var(--c-blue);
+}
+
+.pq-armed {
+  flex: 1 1 auto;
+  border-radius: var(--pq-radius-badge);
+  background: var(--t-down-bg);
+  border: 1px solid var(--t-down-bd);
+  color: var(--c-down);
+  padding: 3px 8px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}

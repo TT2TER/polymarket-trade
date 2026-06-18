@@ -1,0 +1,42 @@
+/* 汇总条:总持仓价值 / 今日(24h) / 未实现盈亏 */
+.pq-sum {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid var(--c-border);
+  background: var(--c-surface);
+}
+
+.pq-sum__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 11px 14px;
+}
+
+.pq-sum__cell + .pq-sum__cell {
+  border-left: 1px solid var(--c-border-soft);
+}
+
+.pq-sum__label {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.5px;
+  color: var(--c-muted2);
+  text-transform: uppercase;
+}
+
+.pq-sum__num {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--c-text-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.pq-sum__num--up {
+  color: var(--c-gain);
+}
+
+.pq-sum__num--down {
+  color: var(--c-loss);
+}

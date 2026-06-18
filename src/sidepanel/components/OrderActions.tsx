@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getBestAsk, getBestBid } from '@/lib/api/clobApi';
-import { N_TICKS, nFromPos, posFromN } from '@/lib/calc/multiplierSlider';
+import { N_MAX, N_TICKS, nFromPos, posFromN } from '@/lib/calc/multiplierSlider';
 import { computeNxCostQuantity } from '@/lib/trading/orders';
 import type { OrderBook, Position } from '@/lib/types';
 import type { I18nKey } from '@/shared/i18n';
@@ -67,7 +67,10 @@ export function OrderActions({ position, book, multipliers }: OrderActionsProps)
 
   const bestBid = getBestBid(book);
   const bestAsk = getBestAsk(book);
-  const targetMultiplier = storedMultiplier ?? multipliers[0] ?? 2;
+  // 不可达上限:目标价 = N×均价 ≤ $1,故 N ≤ 1/均价。向下取整到 0.1 确保不越界。
+  const maxReachableN = position.avgPrice > 0 ? Math.min(N_MAX, Math.floor((1 / position.avgPrice) * 10) / 10) : N_MAX;
+  // 存储值可能(因均价变化或旧默认值)超过不可达上限;有效倍数统一钳制,使滑块/读数/标签/下单一致。
+  const effectiveMultiplier = Math.min(storedMultiplier ?? multipliers[0] ?? 2, maxReachableN);
 
   // 切仓时重置卖出比例为满仓。
   useEffect(() => {
@@ -93,15 +96,15 @@ export function OrderActions({ position, book, multipliers }: OrderActionsProps)
   // 按钮上的内联派生值。
   const askLabel = bestAsk > 0 ? formatCents(bestAsk) : '';
   const bidLabel = bestBid > 0 ? formatCents(bestBid) : '';
-  const nLabel = formatN(targetMultiplier);
-  const targetPrice = targetMultiplier * position.avgPrice;
+  const nLabel = formatN(effectiveMultiplier);
+  const targetPrice = effectiveMultiplier * position.avgPrice;
   const targetLabel = targetPrice > 1 ? t('ops.capped') : formatCents(targetPrice);
   // 「回收成本」按整仓计算可卖股数(独立于卖出滑块)。
   const recoverShares = computeNxCostQuantity(
     position.avgPrice,
     size,
     bestBid > 0 ? bestBid : position.curPrice,
-    targetMultiplier,
+    effectiveMultiplier,
   ).qty;
 
   function buildPayload(mode: ActionMode): Omit<PrepareOrderRequest, 'type'> {
@@ -121,10 +124,10 @@ export function OrderActions({ position, book, multipliers }: OrderActionsProps)
     } else if (mode === 'taker') {
       base.size = sellShares;
     } else if (mode === 'limitN') {
-      base.n = targetMultiplier;
+      base.n = effectiveMultiplier;
       base.size = sellShares;
     } else {
-      base.n = targetMultiplier;
+      base.n = effectiveMultiplier;
     }
 
     return base;
@@ -184,7 +187,9 @@ export function OrderActions({ position, book, multipliers }: OrderActionsProps)
     }
   }
 
-  const nPos = posFromN(targetMultiplier);
+  // 滑块到不可达上限即止;有效倍数已钳制,故 nPos ≤ maxNPos。
+  const nPos = posFromN(effectiveMultiplier);
+  const maxNPos = posFromN(maxReachableN);
   const sellFill = `linear-gradient(to right, var(--c-up) ${sellPercent}%, var(--c-track) ${sellPercent}%)`;
   const nFill = `linear-gradient(to right, var(--c-target) ${nPos}%, var(--c-track) ${nPos}%)`;
 
@@ -247,9 +252,11 @@ export function OrderActions({ position, book, multipliers }: OrderActionsProps)
         <input
           className="pq-range"
           disabled={!authStatus.authenticated}
-          max={100}
+          max={maxNPos}
           min={0}
-          onChange={(event) => setTargetMultiplier(position.asset, nFromPos(Number(event.target.value)))}
+          onChange={(event) =>
+            setTargetMultiplier(position.asset, Math.min(maxReachableN, nFromPos(Number(event.target.value))))
+          }
           step={0.5}
           style={{ background: nFill }}
           type="range"

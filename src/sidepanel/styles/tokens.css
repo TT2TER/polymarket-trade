@@ -1,0 +1,117 @@
+/*
+ * 设计令牌(UI 重设计 · 量化交易终端风格)
+ * - 深/浅双主题,通过 :root[data-theme='dark'|'light'] 切换(App.tsx 在 documentElement 上设 data-theme)。
+ * - ⚠ 红涨绿跌(中国习惯):--c-up = 红 = 盈利/上涨;--c-down = 绿 = 亏损/下跌。与 Polymarket 默认相反。
+ * - 黄色(--c-target)仅用于目标语义(回本翻倍价 / 目标倍数 / 2× 刻度)。
+ * - 蓝色(--c-blue)= 赎回 / 已结算 / 保存。青色(--c-live)= 实时状态。
+ * 全局唯一令牌源:--c-*(颜色)/ --t-*(半透明叠加)/ --font-*(字体)/ --pq-*(尺度)。
+ * 配合 base.css(基座 + 共享原子)与各组件 co-located *.css 构成全部样式(已无单体 styles.css)。
+ */
+
+:root {
+  /* 字体:数据/数字用等宽 IBM Plex Mono,正文用 Inter(沿用现有) */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* 品牌(深浅两主题固定不变) */
+  --c-brand: #f0b90b; /* LOGO「P」方块底 */
+  --c-brand-ink: #0b0e11; /* LOGO「P」字色 */
+  --c-knob: #ffffff; /* 开关圆钮 */
+
+  /* 尺度 */
+  --pq-radius-panel: 12px;
+  --pq-radius-card: 8px;
+  --pq-radius-input: 6px;
+  --pq-radius-badge: 4px;
+  --pq-radius-bar: 3px;
+
+  /*
+   * 盈亏语义色(随「红绿风格」设置切换,见 App.tsx 的 data-color-style)。
+   * 默认 = A 股(红涨绿跌):盈利=红(--c-up),亏损=绿(--c-down)。
+   * 引用 --c-up/--c-down,故自动跟随深/浅主题;data-color-style='us' 时翻转(见下)。
+   * ⚠ 仅「按盈亏改变颜色」的部分用 gain/loss;模拟徽章/止损/盘口买卖/卖出按钮等固定语义仍直接用 --c-up/--c-down。
+   */
+  --c-gain: var(--c-up);
+  --c-loss: var(--c-down);
+  --t-gain-bg: var(--t-up-bg);
+  --t-gain-bd: var(--t-up-bd);
+  --t-loss-bg: var(--t-down-bg);
+  --t-loss-bd: var(--t-down-bd);
+}
+
+/* 美股风格(绿涨红跌):盈利=绿,亏损=红 */
+:root[data-color-style='us'] {
+  --c-gain: var(--c-down);
+  --c-loss: var(--c-up);
+  --t-gain-bg: var(--t-down-bg);
+  --t-gain-bd: var(--t-down-bd);
+  --t-loss-bg: var(--t-up-bg);
+  --t-loss-bd: var(--t-up-bd);
+}
+
+/* 深色(默认 + 系统解析为 dark) */
+:root,
+:root[data-theme='dark'] {
+  --c-bg: #0b0e11;
+  --c-surface: #0d1116;
+  --c-cell: #12161c;
+  --c-card: #161a1e;
+  --c-track: #1e2329;
+  --c-border: #2b3139;
+  --c-border-soft: #1c222a;
+  --c-text: #eaecef;
+  --c-text-strong: #e6e9ef;
+  --c-muted: #9aa3af;
+  --c-muted2: #5e6673;
+  --c-up: #f6465d; /* 红 = 盈利/上涨/模拟徽章 */
+  --c-down: #0ecb81; /* 绿 = 亏损/下跌/已启用/止损 */
+  --c-target: #f0b90b; /* 黄 = 目标价/倍数/2× 刻度 */
+  --c-blue: #4fa8f5; /* 赎回/已结算/保存 */
+  --c-live: #2dd4bf; /* LIVE 指示 */
+  --c-on-accent: #0b0e11; /* 实色按钮上的文字 */
+  --c-rowhover: #10151b; /* 折叠行 hover 背景 */
+
+  --t-up-bg: rgba(246, 70, 93, 0.12);
+  --t-up-bd: rgba(246, 70, 93, 0.32);
+  --t-down-bg: rgba(14, 203, 129, 0.12);
+  --t-down-bd: rgba(14, 203, 129, 0.32);
+  --t-target-bg: rgba(240, 185, 11, 0.1);
+  --t-target-bd: rgba(240, 185, 11, 0.26);
+  --t-blue-bg: rgba(79, 168, 245, 0.12);
+  --t-blue-bd: rgba(79, 168, 245, 0.3);
+
+  --c-shadow: rgba(0, 0, 0, 0.2);
+}
+
+/* 浅色(白天模式) */
+:root[data-theme='light'] {
+  --c-bg: #ffffff;
+  --c-surface: #f4f6f8;
+  --c-cell: #fafbfc;
+  --c-card: #ffffff;
+  --c-track: #e7e9ee;
+  --c-border: #dfe2e8;
+  --c-border-soft: #eceef2;
+  --c-text: #141821;
+  --c-text-strong: #0d1016;
+  --c-muted: #5d6470;
+  --c-muted2: #9aa0ab;
+  --c-up: #dc2640;
+  --c-down: #06a368;
+  --c-target: #b07d00;
+  --c-blue: #2f86d8;
+  --c-live: #0d9488;
+  --c-on-accent: #ffffff;
+  --c-rowhover: #eef1f5;
+
+  --t-up-bg: rgba(220, 38, 64, 0.09);
+  --t-up-bd: rgba(220, 38, 64, 0.28);
+  --t-down-bg: rgba(6, 163, 104, 0.1);
+  --t-down-bd: rgba(6, 163, 104, 0.3);
+  --t-target-bg: rgba(176, 125, 0, 0.12);
+  --t-target-bd: rgba(176, 125, 0, 0.3);
+  --t-blue-bg: rgba(47, 134, 216, 0.1);
+  --t-blue-bd: rgba(47, 134, 216, 0.3);
+
+  --c-shadow: rgba(15, 23, 42, 0.12);
+}
