@@ -1,0 +1,77 @@
+/* 未成交订单 */
+.pq-orders {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pq-orders__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pq-orders__title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: var(--c-muted2);
+}
+
+.pq-orders__cancel-all {
+  border: 1px solid var(--c-border);
+  border-radius: var(--pq-radius-input);
+  background: transparent;
+  color: var(--c-muted);
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.pq-orders__cancel-all:hover {
+  border-color: var(--c-up);
+  color: var(--c-up);
+}
+
+.pq-order {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--pq-radius-input);
+  background: var(--c-cell);
+  padding: 8px 10px;
+}
+
+.pq-order__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pq-order__line {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.pq-order__meta {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--c-muted2);
+}
+
+.pq-order__cancel {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  font-size: 11px;
+  color: var(--c-down);
+}
+
+.pq-order__cancel:hover {
+  border-color: var(--c-down);
+  color: var(--c-down);
+}

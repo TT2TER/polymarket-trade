@@ -1,0 +1,122 @@
+/* 交易 Tab */
+.pq-trade {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pq-trade__block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pq-trade__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pq-trade__derived {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pq-trade__derived--target {
+  color: var(--c-target);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pq-trade__amount {
+  color: var(--c-muted);
+}
+
+/* 可键盘编辑的「卖出数量」(股),与滑块双向联动 */
+.pq-trade__shares {
+  width: 5.5em;
+  padding: 2px 5px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--pq-radius-input);
+  background: var(--c-cell);
+  color: var(--c-text-strong);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  outline: none;
+}
+
+.pq-trade__shares:focus {
+  border-color: var(--c-up);
+}
+
+.pq-trade__shares:disabled {
+  opacity: 0.6;
+}
+
+.pq-trade__buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* 成交优先 = 立即卖出,红实色 */
+.pq-btn--sell {
+  border-color: var(--c-up);
+  background: var(--c-up);
+  color: var(--c-on-accent);
+}
+
+.pq-btn--sell:hover {
+  background: color-mix(in srgb, var(--c-up) 86%, black);
+  border-color: var(--c-up);
+}
+
+/* N 滑块刻度 */
+.pq-trade__ticks {
+  position: relative;
+  height: 12px;
+  margin-top: -2px;
+}
+
+.pq-trade__tick {
+  position: absolute;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--c-muted2);
+}
+
+.pq-trade__hint {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  color: var(--c-muted2);
+  letter-spacing: 0.3px;
+}
+
+.pq-trade__guard {
+  margin: 0;
+  border: 1px solid var(--t-up-bd);
+  border-radius: var(--pq-radius-input);
+  background: var(--t-up-bg);
+  color: var(--c-up);
+  padding: 7px 9px;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.pq-trade__result {
+  margin: 0;
+  border: 1px solid var(--t-down-bd);
+  border-radius: var(--pq-radius-input);
+  background: var(--t-down-bg);
+  color: var(--c-down);
+  padding: 7px 9px;
+  font-size: 10px;
+  line-height: 1.4;
+}
