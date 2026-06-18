@@ -205,7 +205,8 @@ input:disabled {
   background: var(--surface-2);
 }
 
-.settings-bar__toggle span:last-child {
+/* 只给 toggle 的直接子级(显示/隐藏文字)上蓝色,避免误伤 label 内嵌的 mode-pill 徽章 */
+.settings-bar__toggle > span:last-child {
   color: var(--accent);
   font-size: 12px;
 }
