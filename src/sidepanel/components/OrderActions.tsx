@@ -187,9 +187,8 @@ export function OrderActions({ position, book, multipliers }: OrderActionsProps)
     }
   }
 
-  // 滑块到不可达上限即止;有效倍数已钳制,故 nPos ≤ maxNPos。
+  // 轨道始终用满 0–100 全尺度(与 nFill 渐变百分比一致);拖过不可达点时由 onChange 钳制回弹,形成硬停。
   const nPos = posFromN(effectiveMultiplier);
-  const maxNPos = posFromN(maxReachableN);
   const sellFill = `linear-gradient(to right, var(--c-up) ${sellPercent}%, var(--c-track) ${sellPercent}%)`;
   const nFill = `linear-gradient(to right, var(--c-target) ${nPos}%, var(--c-track) ${nPos}%)`;
 
@@ -252,7 +251,7 @@ export function OrderActions({ position, book, multipliers }: OrderActionsProps)
         <input
           className="pq-range"
           disabled={!authStatus.authenticated}
-          max={maxNPos}
+          max={100}
           min={0}
           onChange={(event) =>
             setTargetMultiplier(position.asset, Math.min(maxReachableN, nFromPos(Number(event.target.value))))
