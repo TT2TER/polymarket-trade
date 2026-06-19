@@ -160,8 +160,13 @@
   color: var(--c-muted2);
 }
 
-/* 行 3:进度条 / 止损徽章 */
+/* 行 3:进度条 */
 .pq-row__l3 {
+  display: flex;
+}
+
+/* 行 4:止损武装提示横条(进度条下方,不覆盖进度条) */
+.pq-row__l4 {
   display: flex;
 }
 

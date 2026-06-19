@@ -108,8 +108,14 @@ export function PositionRow({ view, defaultMultiplier, isOpen, onToggle }: Posit
         </span>
       </div>
 
+      {/* 进度条始终展示(不被止损武装覆盖) */}
       <div className="pq-row__l3">
-        {armed ? (
+        <ProgressTrack bar={bar} multiplier={targetMultiplier} cappedLabel={t('position.capped')} t={t} />
+      </div>
+
+      {/* 止损已武装:进度条下方追加一条提示,不再替换进度条 */}
+      {armed ? (
+        <div className="pq-row__l4">
           <span className="pq-armed">
             ⛨ {t('row.armed', {
               window: Math.round((stopLossConfig?.windowMs ?? 0) / 1000),
@@ -117,10 +123,8 @@ export function PositionRow({ view, defaultMultiplier, isOpen, onToggle }: Posit
               fraction: ((stopLossConfig?.sellFraction ?? 0) * 100).toFixed(0),
             })}
           </span>
-        ) : (
-          <ProgressTrack bar={bar} multiplier={targetMultiplier} cappedLabel={t('position.capped')} t={t} />
-        )}
-      </div>
+        </div>
+      ) : null}
     </button>
   );
 }

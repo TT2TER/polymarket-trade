@@ -61,6 +61,8 @@ export function OrderActions({ position, book, multipliers }: OrderActionsProps)
   const setTargetMultiplier = useMonitorStore((state) => state.setTargetMultiplier);
 
   const [sellPercent, setSellPercent] = useState(100);
+  // 卖出股数输入框的原始文本:独立 state,避免「受控数值由 sellPercent 派生」在输入小数(如 "3.") 时被回写打断。
+  const [sharesInput, setSharesInput] = useState('');
   const [pending, setPending] = useState<PendingOrder | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<string | null>(null);
@@ -80,10 +82,19 @@ export function OrderActions({ position, book, multipliers }: OrderActionsProps)
   }, [position.asset]);
 
   const size = position.size;
-  const sellShares = (sellPercent / 100) * size;
+  // 卖出股数精度 0.01:按百分比换算后四舍五入到两位小数,避免浮点尾噪。
+  const sellShares = Math.round((sellPercent / 100) * size * 100) / 100;
   const estAmount = sellShares * (bestBid > 0 ? bestBid : position.curPrice);
   const canSell = authStatus.authenticated && !isTrading && sellShares > 0;
   const disabledReason = authStatus.authenticated ? undefined : t('order.authRequired');
+
+  // 滑块/换仓导致股数变化时同步输入框文本;若输入框当前文本已表示同一数值(用户正在输入,含未完成的小数)则保留原文本不回写。
+  useEffect(() => {
+    setSharesInput((prev) => {
+      const sameValue = prev !== '' && Math.round(Number(prev) * 100) === Math.round(sellShares * 100);
+      return sameValue ? prev : Number.isFinite(sellShares) ? String(sellShares) : '';
+    });
+  }, [sellShares]);
 
   // 编辑「卖出数量」(股)反推百分比,与滑块双向联动。
   function setSellShares(shares: number): void {
@@ -203,12 +214,15 @@ export function OrderActions({ position, book, multipliers }: OrderActionsProps)
               aria-label={t('order.sellQty')}
               className="pq-trade__shares"
               disabled={!authStatus.authenticated}
-              max={Math.floor(size)}
+              max={size}
               min={0}
-              onChange={(event) => setSellShares(Number(event.target.value))}
-              step={1}
+              onChange={(event) => {
+                setSharesInput(event.target.value);
+                setSellShares(Number(event.target.value));
+              }}
+              step={0.01}
               type="number"
-              value={Math.round(sellShares)}
+              value={sharesInput}
             />
             <span className="pq-muted"> / {formatShares(size)} {t('order.shares')}</span>
             <span className="pq-trade__amount"> · {formatMoney(estAmount)}</span>
