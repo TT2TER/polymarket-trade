@@ -21,6 +21,8 @@ const DICTIONARY = {
   },
   'row.wipeout': { zh: '亏光', en: 'Wipeout' },
   'row.breakeven': { zh: '平仓', en: 'Breakeven' },
+  'row.settling': { zh: '结算中', en: 'Settling' },
+  'row.settleIn': { zh: '距结算 {label}', en: 'Settles in {label}' },
 
   'ops.targetPrices': { zh: '回本翻倍价', en: 'Target prices' },
   'ops.capped': { zh: '不可达', en: 'capped' },

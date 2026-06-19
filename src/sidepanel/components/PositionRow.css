@@ -94,6 +94,32 @@
   white-space: nowrap;
 }
 
+/* #4 封盘倒计时 chip:默认柔和,≤24h 黄、≤2h 红;结算中用更弱的灰。 */
+.pq-clock {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--c-muted);
+  white-space: nowrap;
+}
+
+.pq-clock--soon {
+  color: var(--c-target);
+}
+
+.pq-clock--imminent {
+  color: var(--c-loss);
+}
+
+.pq-clock--closed {
+  color: var(--c-muted2);
+}
+
 .pq-row__pnl {
   flex: 0 0 auto;
   font-family: var(--font-mono);
@@ -133,9 +159,18 @@
 }
 
 .pq-row__nums {
+  flex: 0 1 auto;
+  min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+/* L2 中段 sparkline:占据数字与价值之间的弹性空间,宽度随面板增长;垂直居中
+   (L2 文本按 baseline 对齐,svg 单独居中)。 */
+.pq-row__l2 > .pq-spark {
+  align-self: center;
+  margin: 0 4px;
 }
 
 .pq-muted {

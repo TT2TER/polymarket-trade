@@ -1,7 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { progressBar } from '@/lib/calc/progressBar';
+import { settlementCountdown } from '@/lib/calc/settlementCountdown';
 import type { PositionView } from '@/lib/types';
 import { useMonitorStore, useT } from '@/sidepanel/store';
+import { Sparkline } from './Sparkline';
+import './Sparkline.css';
+
+// 稳定空数组:无价格历史的仓位复用同一引用,避免选择器每帧返回新空数组触发重渲染。
+const EMPTY_POINTS: number[] = [];
 
 interface PositionRowProps {
   view: PositionView;
@@ -51,7 +57,14 @@ export function PositionRow({ view, defaultMultiplier, isOpen, onToggle }: Posit
   const t = useT();
   const stopLossConfig = useMonitorStore((state) => state.stopLossConfigs[view.position.asset]);
   const storedMultiplier = useMonitorStore((state) => state.targetMultipliers[view.position.asset]);
+  const points = useMonitorStore((state) => state.priceHistory[view.position.asset]) ?? EMPTY_POINTS;
   const targetMultiplier = storedMultiplier ?? defaultMultiplier;
+
+  // #4 封盘倒计时:用 gamma 元数据的封盘时间(gameStartTime||endDate),非 data-api 的纯日期 endDate。
+  // 元数据未拉到时 closeTime 为 undefined → 不渲染 chip(短暂);太远(>30d)/无效也不渲染。
+  const closeTime = useMonitorStore((state) => state.marketMeta[view.position.conditionId]?.closeTime) ?? null;
+  const countdown = settlementCountdown(closeTime);
+  const settlingText = t('row.settling');
 
   // 总盈亏 = 已实现(API) + 未实现(本地按最优买价实时计算)。% 仅取未实现(盯市)。
   const realized = finite(view.position.realizedPnl);
@@ -90,6 +103,14 @@ export function PositionRow({ view, defaultMultiplier, isOpen, onToggle }: Posit
       <div className="pq-row__l1">
         <span className={`pq-tag pq-tag--${side}`}>{view.position.outcome.toUpperCase()}</span>
         <span className="pq-row__title">{view.position.title}</span>
+        {countdown && !countdown.farFuture ? (
+          <span
+            className={`pq-clock pq-clock--${countdown.urgency}`}
+            title={t('row.settleIn', { label: countdown.label || settlingText })}
+          >
+            ⏱{countdown.label || settlingText}
+          </span>
+        ) : null}
         <span className={`pq-row__pnl pq-row__pnl--${side}`}>{formatPercent(view.unrealizedPnlPercent)}</span>
         <span className={`pq-row__chev ${isOpen ? 'pq-row__chev--open' : ''}`}>▾</span>
       </div>
@@ -101,6 +122,7 @@ export function PositionRow({ view, defaultMultiplier, isOpen, onToggle }: Posit
           <span className="pq-arrow"> → </span>
           <span className="pq-strongnum">{formatCents(view.currentPrice)}</span>
         </span>
+        <Sparkline avgPrice={view.position.avgPrice} gain={gain} points={points} />
         <span className="pq-row__value">
           {formatMoney(view.positionValue)}
           <span className="pq-dot"> · </span>

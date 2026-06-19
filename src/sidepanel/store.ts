@@ -5,6 +5,8 @@ import { roundDownShares, type PlaceSellResult } from '@/lib/trading/orders';
 import { StopLossMonitor, type StopLossMonitorStatuses, type StopLossTriggerDetails } from '@/lib/stoploss/monitor';
 import { WsSource } from '@/lib/datasource/wsSource';
 import { getTodayPnl } from '@/lib/api/userPnl';
+import { getMarketMeta, type MarketMeta } from '@/lib/api/gammaApi';
+import { samplePriceHistory, type PriceHistory } from '@/lib/calc/priceHistory';
 import { DEFAULT_CONFIG, readConfig, writeConfig, type AppConfig } from '@/shared/config';
 import { translate, type I18nKey } from '@/shared/i18n';
 import {
@@ -39,6 +41,10 @@ interface MonitorStore {
   targetMultipliers: TargetMultipliers;
   todayPnl: number | null;
   snapshot: Snapshot | null;
+  // #1 价格走势:每个 asset 的内存级价格序列(关面板即清),由行情合帧回调采样。
+  priceHistory: PriceHistory;
+  // #4 封盘倒计时:每个 conditionId 的市场元数据(gamma 低频拉取的封盘时间)。
+  marketMeta: Record<string, MarketMeta>;
   openOrders: Record<string, OpenOrder[]>;
   orderErrors: Record<string, string | null>;
   isLoading: boolean;
@@ -49,6 +55,7 @@ interface MonitorStore {
   loadStopLossConfigs: () => Promise<void>;
   loadTargetMultipliers: () => Promise<void>;
   setTargetMultiplier: (asset: string, n: number) => void;
+  fetchMarketMeta: (conditionIds: string[]) => Promise<void>;
   fetchTodayPnl: () => Promise<void>;
   armStopLoss: (asset: string, params?: StopLossConfigPatch) => Promise<void>;
   disarmStopLoss: (asset: string) => Promise<void>;
@@ -87,6 +94,12 @@ let activeStopLossMonitor: StopLossMonitor | null = null;
 let monitoringActive = false;
 // 目标倍数 N 的 debounce 落盘计时器(拖动停止 ~500ms 后写一次,不打爆 storage)。
 let targetMultipliersTimer: ReturnType<typeof setTimeout> | null = null;
+// #4 封盘元数据:已请求(成功或在途)的 conditionId,避免行情每帧重复拉 gamma;startMonitoring 时清空。
+const requestedConditionIds = new Set<string>();
+// 监控代次:每次 startMonitoring +1。在途 gamma 请求返回时凭它丢弃旧会话结果(防 marketMeta 被 stale 覆盖)。
+let monitorGeneration = 0;
+// gamma 拉取失败后的退避时点:避免失败 id 被移出集合后在每个行情帧紧密重试。
+let metaRetryAfter = 0;
 
 function stopActiveSource(): void {
   activeUnsubscribe?.();
@@ -177,6 +190,8 @@ const monitorStore = create<MonitorStore>((set, get) => ({
   targetMultipliers: {},
   todayPnl: null,
   snapshot: null,
+  priceHistory: {},
+  marketMeta: {},
   openOrders: {},
   orderErrors: {},
   isLoading: false,
@@ -235,6 +250,37 @@ const monitorStore = create<MonitorStore>((set, get) => ({
     targetMultipliersTimer = setTimeout(() => {
       void writeTargetMultipliers(get().targetMultipliers);
     }, 500);
+  },
+
+  // #4 封盘元数据:对尚未请求过的 conditionId 低频拉一次 gamma(gameStartTime||endDate)。
+  // 失败的 id 从 requested 集合移除以便后续重试;成功的 closeTime 可能为 null(gamma 也没有时间)。
+  fetchMarketMeta: async (conditionIds: string[]) => {
+    if (Date.now() < metaRetryAfter) {
+      return; // 上次失败后的退避窗口内,先不重试。
+    }
+    const pending = conditionIds.filter((id) => id && !requestedConditionIds.has(id));
+    if (pending.length === 0) {
+      return;
+    }
+    const generation = monitorGeneration;
+    for (const id of pending) {
+      requestedConditionIds.add(id);
+    }
+    try {
+      const meta = await getMarketMeta(pending);
+      if (generation !== monitorGeneration) {
+        return; // 已换会话(startMonitoring),丢弃旧结果,勿覆盖新 marketMeta。
+      }
+      set((state) => ({ marketMeta: { ...state.marketMeta, ...meta } }));
+      // gamma 未返回的 id 保留在 requested 中不重试(查无此市场),仅网络错误才整批重试。
+    } catch {
+      metaRetryAfter = Date.now() + 5000;
+      if (generation === monitorGeneration) {
+        for (const id of pending) {
+          requestedConditionIds.delete(id);
+        }
+      }
+    }
   },
 
   // 汇总条「今日」:低频拉取滚动 24h P&L,与 WS 行情解耦;失败静默(非关键)。
@@ -346,6 +392,11 @@ const monitorStore = create<MonitorStore>((set, get) => ({
   startMonitoring: () => {
     monitoringActive = true;
     stopActiveSource();
+    // 换地址/重启监控:进入新代次,清空封盘元数据/已请求集合/价格历史,按新持仓重新拉。
+    monitorGeneration += 1;
+    requestedConditionIds.clear();
+    metaRetryAfter = 0;
+    set({ marketMeta: {}, priceHistory: {} });
 
     const config = get().config;
     if (!config.address) {
@@ -370,7 +421,13 @@ const monitorStore = create<MonitorStore>((set, get) => ({
         isLoading: snapshot.lastUpdated === 0 && snapshot.error === null,
         // mergeMonitorStatuses 在无止损更新时原样返回同一引用,不会无谓刷新订阅方。
         stopLossStatuses: mergeMonitorStatuses(state.stopLossStatuses, stopLossMonitorStatuses),
+        // #1 价格走势:同一帧采样一次;无价格变化时 samplePriceHistory 返回同引用,sparkline 订阅方不重渲染。
+        priceHistory: samplePriceHistory(state.priceHistory, snapshot),
       }));
+      // #4 封盘倒计时:为本帧新出现的 conditionId 低频补拉 gamma 元数据(内部去重,非阻塞)。
+      if (snapshot.positions.length > 0) {
+        void get().fetchMarketMeta(snapshot.positions.map((p) => p.conditionId));
+      }
     });
     set({ isLoading: true });
     source.start();

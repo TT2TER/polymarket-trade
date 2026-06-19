@@ -302,3 +302,36 @@ i18n:AuthBar 文案集中在 `TEXT` 常量,便于 P6 抽取。
   - 验收:Codex 交叉审查(扩展代码 clean,修了脚本里 2 个阻塞项);**用户浏览器实测小额卖单成功**(止损未实测)。typecheck+build 全过。
   - 发布:合并 main、tag `v1.0.0`、GitHub Release 附 `polymarket-trade-v1.0.0.zip`(https://github.com/TT2TER/polymarket-trade/releases/tag/v1.0.0)。README 重写为终端用户上手指南。
   - ⚠ 实盘下单需**关代理直连**(issue #70:机房/VPN 出口 IP 会被挂单后约 10s 撤销)。
+
+---
+
+## 8. P7 决策辅助功能(2026-06-19 规划,产品视角)
+
+> 背景:v1.0.0 后做产品规划。**核心判断**:本插件护城河是「**卖出/离场决策**」,不是「看盘」(看盘官网更强)。未来主线 = decision support → automation,不堆展示字段。**定位:前期纯自用,功能成熟后再考虑社区推广**(故账户类型自动识别/多账户/分发打磨等「为别人服务」的工作全部推迟到推广时再启动)。
+>
+> **明确不做**:① 买入功能(去和官网最强的发现/研究正面竞争;破坏「只会减仓」安全不变量;UI 复杂度高;USDC allowance 又是 1271 坑区;买入 judgment-heavy 工具帮不上)。② 云端化(摧毁「私钥仅本地、关浏览器即清」的信任模型)。③ 堆更多行情指标。
+
+分支:`feat/p7-decision-tools`(从干净 main 切出,main 末尾含用户提交的渲染优化+逐档闪烁 `4449310`)。
+
+### 优先实现(1–4,纯自用刚需,本阶段)
+1. **价格走势 sparkline** — 每仓入场后迷你折线辅助卖出时机。**已定**:内存级、固定短窗口(~120 点,关面板重建);采样价 = `getBestBid(book)||curPrice`(与卡片 `currentPrice` 一致),在 store subscribe 回调**一帧一次**采样(不让每行各自 set,保住既有合帧);叠均价参考线;gain/loss 着色。
+2. **成交历史 + 已实现盈亏** — 逐笔卖出流水 + 聚合已实现盈亏 + CSV 导出。`Position.realizedPnl` 已是 data-api 给的聚合值可直接用;逐笔流水需自记。**已定**:接 **user WS 成交频道对账,只记真实成交**(因价格优先/N 倍挂单是被动单,提交≠成交;需新增认证 user channel 订阅 + 订单状态对账)。落 `chrome.storage.local`(持久、封顶)。新增「流水」视图。⚠ 工作量最大(认证 WS)。
+3. **到价提醒(被动,不自动交易)** — 复用止损那套每仓配置+面板监控循环逐 tick 评估,触发 `chrome.notifications`。条件:价≥X/≤Y、盈亏%≥/≤X、市值≥X。**已定**:默认一次性(触发即解除),提供「重复提醒」开关。
+4. **封盘倒计时 / 临近结算高亮** — 解析 `Position.endDate`(已存在,零新接口)算剩余时间,折叠行 chip(<24h 黄 / <2h 红)。⚠ 命名坑:已有蓝色「封盘 N×」是**价格倍率**(=1/均价),与此**时间倒计时**无关,命名用「结算/倒计时」避免混淆。四项中最轻。
+
+实现顺序(由轻到重):#4 → #1 → #3 → #2。工作流遵循 CLAUDE.md(Claude 出 spec,Codex 编码,双向交叉验证)。
+
+### 后续计划(5–7,组合层升维,看仓位规模触发)
+5. **风险敞口总览** — 按 event/outcome 聚合净敞口与集中度(单 event >40% 标红)。**零新数据纯展示,三者中性价比最高,真要先做这个**。防「隐性过度集中」(如同时押巴西夺冠 YES + 决赛巴西 YES,相关性高)。
+6. **条件单 / OCO** — 把自动化从「只防急跌」补成完整离场策略(止盈括号 + 缓跌离场)。复用 WS 价格流 + placeSell + 每仓配置;引入「待触发指令」新状态(需 UI/生命周期管理)。
+7. **批量/组合操作** — 一键平所有亏损仓 / 对所有盈利仓挂 N 倍止盈 / 范围批量撤单。价值取决于持仓数量,优先级由实际仓位规模触发。⚠ 批量动很多真钱,需独立「批量上限」护栏 + 逐条确认。
+
+### 搁置(到「考虑社区推广」时再启动)
+- 账户类型自动识别(`test-deposit-wallet.mjs` 探测逻辑是现成地基)、多账户/多钱包切换、分发打磨/引导。
+
+### 实现进展(全自动:每功能 Codex 交叉验证 + 单独 commit)
+- 2026-06-19:**#4 封盘倒计时 + #1 价格走势 sparkline 完成**(首个功能单元)。
+  - #1:`priceHistory.ts`(事件驱动采样/同引用复用/封顶 120/裁剪)+ store 合帧回调一帧采样 + `Sparkline.tsx`(SVG 折线+均价虚线,viewBox+preserveAspectRatio=none + CSS width:100% **随面板宽度增长**)接进 L2。
+  - #4:**修正数据源**——data-api 的 `endDate` 是纯日期/结算目标(实测可停在过去而市场仍交易),不可用;改 `gammaApi.ts` 低频按 conditionId 批量取 `gameStartTime`(单场开赛即停盘)`||endDate`(完整 ISO),store `marketMeta` + subscribe 回调去重补拉;`PositionRow` 倒计时 chip 改用之(命名避开「封盘 N×」价格倍率,用「结算」)。
+  - Codex 交叉验证(3 项已修):MED gamma HTTP 错误码不重试→改抛错触发重试;MED 缺监控代次守卫→加 `monitorGeneration` 丢弃旧会话在途结果 + 失败 5s 退避;LOW startMonitoring 未清 `priceHistory`→已清。
+  - 离线 sanity:settlementCountdown 边界、samplePriceHistory 同引用/封顶/裁剪、gamma 时间规范化(空格+无冒号偏移、+05:30、纯日期)全过;typecheck+build 通过。⚠ Chrome 内肉眼确认待用户。

@@ -1,0 +1,38 @@
+/* #1 价格走势 sparkline:宽度随容器(面板)增长,高度固定。 */
+.pq-spark {
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 40px;
+  height: 20px;
+  overflow: visible;
+}
+
+.pq-spark--empty {
+  flex: 1 1 auto;
+  min-width: 40px;
+  height: 20px;
+}
+
+.pq-spark__line {
+  stroke-width: 1.25;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke; /* preserveAspectRatio=none 下保持线宽不被横向拉伸 */
+}
+
+.pq-spark__line--up {
+  stroke: var(--c-gain);
+}
+
+.pq-spark__line--down {
+  stroke: var(--c-loss);
+}
+
+/* 均价(成本)参考虚线 */
+.pq-spark__avg {
+  stroke: var(--c-muted2);
+  stroke-width: 1;
+  opacity: 0.55;
+  vector-effect: non-scaling-stroke;
+}
