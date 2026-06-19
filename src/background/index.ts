@@ -1,4 +1,4 @@
-// ⚠ 必须最先导入:在 clob-client / ethers 求值前修正 service worker 的环境探测。
+// ⚠ 必须最先导入:在 clob-client(viem)求值前修正 service worker 的环境探测。
 import './swEnv';
 
 import { decryptPrivateKey, encryptPrivateKey, normalizePrivateKey } from '@/lib/crypto/keyStore';

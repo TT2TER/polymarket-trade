@@ -33,7 +33,8 @@ export const DEFAULT_CONFIG: AppConfig = {
   positionsIntervalMs: 15_000,
   booksIntervalMs: 5_000,
   multipliers: [2, 3, 5],
-  dryRun: true,
+  // 存款钱包实盘已打通并验证,默认实盘交易(dryRun=false)。仍受二次确认 + maxOrderUsd 上限保护;可在设置随时切回模拟。
+  dryRun: false,
   maxOrderUsd: 100,
   stopLossMaxUsd: 1000,
   stopLossSlippage: 0.05,
