@@ -296,3 +296,9 @@ i18n:AuthBar 文案集中在 `TEXT` 常量,便于 P6 抽取。
   - **涨跌配色 A股/美股切换**:新增语义令牌 `--c-gain/--c-loss` + `--t-gain/loss-*`(`tokens.css`,引用 `--c-up/--c-down` 故跟随深浅主题),`:root[data-color-style='us']` 翻转;`AppConfig.colorStyle: 'cn'|'us'`(默认 cn)+ App 设 `data-color-style` + SettingsBar 分段控件。**仅** pnl 驱动的 CSS(汇总条/YES·NO 徽章/盈亏%·额/进度条 fill·knob)改用 gain/loss;固定语义色(模拟徽章红、止损/启用绿、盘口买红卖绿、卖出红、撤单绿)不动。撤单按钮按用户要求改绿。
   - **交叉验证**:Codex 独立审查(不共享结论)抓出滑块封顶后读数/标签/payload 仍用未钳制 N → 已统一到 `effectiveMultiplier`;配色作用域、CSS 特异性、深浅主题下翻转均确认正确。
   - ⚠ **以上 UI 改动仅过 `tsc` + 数值验证,未在 Chrome 扩展内实跑**;待真机确认滑块拇指/填充对齐、高倍数进度条黄线右移。`npm run build` 另有一处**无关、预存**报错(`StopLossPanel.tsx` 未使用的 `DEFAULT_SLIP_PCT`,属止损滑点 UI 半成品,未触碰)。
+- 2026-06-19:✅ **实盘下单打通(推翻 §289 的"暂不解决")并发布 v1.0.0**。
+  - 真因不是上游 bug:`createApiKey` 绑 EOA 是官方设计(ts-sdk#73),早期失败是**签名类型写死成 `POLY_PROXY(1)`**。诊断脚本 `scripts/test-deposit-wallet.mjs`(按官方 deposit-wallets 文档,逐签名类型探测余额)确认本账户为 ERC-1271 存款钱包,**仅 `POLY_1271(3)` 能读余额/下单**;owner EOD = 导出私钥派生地址(非 TSS,可签)。funder = 个人资料页「仅供 API 使用」地址。
+  - 改动:`clobClient.ts` signer 改 **viem walletClient**(与已验证路径一致)、`SIGNATURE_TYPE=POLY_1271`、私钥规范化;删 `ethers` 依赖、加 `viem`;`config.ts` **dryRun 默认 false(实盘)**;新增诊断/验证脚本(不进 dist)。
+  - 验收:Codex 交叉审查(扩展代码 clean,修了脚本里 2 个阻塞项);**用户浏览器实测小额卖单成功**(止损未实测)。typecheck+build 全过。
+  - 发布:合并 main、tag `v1.0.0`、GitHub Release 附 `polymarket-trade-v1.0.0.zip`(https://github.com/TT2TER/polymarket-trade/releases/tag/v1.0.0)。README 重写为终端用户上手指南。
+  - ⚠ 实盘下单需**关代理直连**(issue #70:机房/VPN 出口 IP 会被挂单后约 10s 撤销)。
