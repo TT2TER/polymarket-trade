@@ -79,7 +79,7 @@ export function StopLossPanel({ position }: StopLossPanelProps) {
   const sellShares = (sellPercent / 100) * position.size;
 
   const windowFill = `linear-gradient(to right, var(--c-down) ${((windowSeconds - 1) / 119) * 100}%, var(--c-track) ${((windowSeconds - 1) / 119) * 100}%)`;
-  const dropFill = `linear-gradient(to right, var(--c-down) ${((dropPercent - 3) / 47) * 100}%, var(--c-track) ${((dropPercent - 3) / 47) * 100}%)`;
+  const dropFill = `linear-gradient(to right, var(--c-down) ${((dropPercent - 3) / 147) * 100}%, var(--c-track) ${((dropPercent - 3) / 147) * 100}%)`;
   const sellFill = `linear-gradient(to right, var(--c-down) ${((sellPercent - 5) / 95) * 100}%, var(--c-track) ${((sellPercent - 5) / 95) * 100}%)`;
   const slipFill = `linear-gradient(to right, var(--c-down) ${(slipPercent / 50) * 100}%, var(--c-track) ${(slipPercent / 50) * 100}%)`;
 
@@ -130,7 +130,7 @@ export function StopLossPanel({ position }: StopLossPanelProps) {
         <input
           className="pq-range"
           disabled={isSaving}
-          max={50}
+          max={150}
           min={3}
           onChange={(event) => setDropPercent(Number(event.target.value))}
           step={0.5}
