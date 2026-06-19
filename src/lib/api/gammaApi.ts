@@ -7,8 +7,12 @@ const GAMMA_MARKETS_URL = 'https://gamma-api.polymarket.com/markets';
 const CHUNK = 20; // 每次请求的 condition_ids 数量,避免 URL 过长。
 
 export interface MarketMeta {
-  /** 封盘时间,规范化为 ISO 字符串;取不到为 null。 */
-  closeTime: string | null;
+  // 开赛时间(体育单场:gameStartTime)。这是流动性骤变的关键时点,但 ≠ 比赛结束/真正封盘
+  //(gamma 无比赛结束字段;实测体育市场 endDate==gameStartTime==开赛,开赛后仍 acceptingOrders)。
+  kickoff: string | null;
+  // 结算目标时间(聚合市场:endDate,完整 ISO)。仅在「无 gameStartTime」时有意义;
+  // 体育单场的 endDate 不可信(=开赛),故此时置 null。
+  settleTime: string | null;
 }
 
 // gamma 的 gameStartTime 形如 "2026-06-19 22:00:00+00"(空格分隔、偏移无冒号),
@@ -71,7 +75,10 @@ export async function getMarketMeta(conditionIds: string[]): Promise<Record<stri
       if (!id) {
         continue;
       }
-      result[id] = { closeTime: normalizeIso(market.gameStartTime) ?? normalizeIso(market.endDate) };
+      const kickoff = normalizeIso(market.gameStartTime);
+      // 体育单场(有 gameStartTime):endDate 不可信(=开赛),settleTime 置 null;
+      // 聚合市场(无 gameStartTime):endDate 即结算目标。
+      result[id] = { kickoff, settleTime: kickoff ? null : normalizeIso(market.endDate) };
     }
   }
 

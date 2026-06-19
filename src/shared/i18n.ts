@@ -23,6 +23,8 @@ const DICTIONARY = {
   'row.breakeven': { zh: '平仓', en: 'Breakeven' },
   'row.settling': { zh: '结算中', en: 'Settling' },
   'row.settleIn': { zh: '距结算 {label}', en: 'Settles in {label}' },
+  'row.live': { zh: '进行中', en: 'Live' },
+  'row.kickoffIn': { zh: '距开赛 {label}', en: 'Kickoff in {label}' },
 
   // #3 到价提醒
   'alert.tab': { zh: '提醒', en: 'Alerts' },

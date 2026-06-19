@@ -1,12 +1,11 @@
-/* #5 风险敞口总览 */
+/* #5 风险敞口总览(无缝通栏:与汇总条一致,底边分隔 + surface 背景,无圆角无外框) */
 .pq-expo {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  border: 1px solid var(--c-border);
-  border-radius: var(--pq-radius-card, 10px);
+  border-bottom: 1px solid var(--c-border);
   background: var(--c-surface);
-  padding: 9px 11px;
+  padding: 10px 14px;
 }
 
 .pq-expo__title {

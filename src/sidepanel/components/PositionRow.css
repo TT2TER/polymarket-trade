@@ -120,6 +120,10 @@
   color: var(--c-muted2);
 }
 
+.pq-clock--live {
+  color: var(--c-blue);
+}
+
 .pq-row__pnl {
   flex: 0 0 auto;
   font-family: var(--font-mono);
@@ -158,19 +162,19 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* 份额@均价→现价:不收缩,保证「现价」永远完整可见(不被 sparkline 挤成省略号)。 */
 .pq-row__nums {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
+  flex: 0 0 auto;
   white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
-/* L2 中段 sparkline:占据数字与价值之间的弹性空间,宽度随面板增长;垂直居中
-   (L2 文本按 baseline 对齐,svg 单独居中)。 */
+/* L2 中段 sparkline:占据数字与价值之间的剩余空间,宽度随面板增长;空间不足时优先收缩它
+   (而非收缩左侧数字)。垂直居中。 */
 .pq-row__l2 > .pq-spark {
+  flex: 1 1 auto;
+  min-width: 0;
   align-self: center;
-  margin: 0 4px;
+  margin: 0 6px;
 }
 
 .pq-muted {

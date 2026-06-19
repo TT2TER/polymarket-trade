@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { progressBar } from '@/lib/calc/progressBar';
-import { settlementCountdown } from '@/lib/calc/settlementCountdown';
+import { marketTimer } from '@/lib/calc/settlementCountdown';
 import type { PositionView } from '@/lib/types';
 import { useMonitorStore, useT } from '@/sidepanel/store';
 import { Sparkline } from './Sparkline';
@@ -60,11 +60,10 @@ export function PositionRow({ view, defaultMultiplier, isOpen, onToggle }: Posit
   const points = useMonitorStore((state) => state.priceHistory[view.position.asset]) ?? EMPTY_POINTS;
   const targetMultiplier = storedMultiplier ?? defaultMultiplier;
 
-  // #4 封盘倒计时:用 gamma 元数据的封盘时间(gameStartTime||endDate),非 data-api 的纯日期 endDate。
-  // 元数据未拉到时 closeTime 为 undefined → 不渲染 chip(短暂);太远(>30d)/无效也不渲染。
-  const closeTime = useMonitorStore((state) => state.marketMeta[view.position.conditionId]?.closeTime) ?? null;
-  const countdown = settlementCountdown(closeTime);
-  const settlingText = t('row.settling');
+  // #4 市场时间提示:体育单场=开赛倒计时(开赛后「进行中」),聚合市场=结算倒计时。
+  // 元数据未拉到/太远(>30d)则不渲染 chip。
+  const meta = useMonitorStore((state) => state.marketMeta[view.position.conditionId]);
+  const timer = marketTimer(meta?.kickoff ?? null, meta?.settleTime ?? null);
 
   // 总盈亏 = 已实现(API) + 未实现(本地按最优买价实时计算)。% 仅取未实现(盯市)。
   const realized = finite(view.position.realizedPnl);
@@ -103,14 +102,7 @@ export function PositionRow({ view, defaultMultiplier, isOpen, onToggle }: Posit
       <div className="pq-row__l1">
         <span className={`pq-tag pq-tag--${side}`}>{view.position.outcome.toUpperCase()}</span>
         <span className="pq-row__title">{view.position.title}</span>
-        {countdown && !countdown.farFuture ? (
-          <span
-            className={`pq-clock pq-clock--${countdown.urgency}`}
-            title={t('row.settleIn', { label: countdown.label || settlingText })}
-          >
-            ⏱{countdown.label || settlingText}
-          </span>
-        ) : null}
+        {timer && !timer.farFuture ? <TimerChip timer={timer} t={t} /> : null}
         <span className={`pq-row__pnl pq-row__pnl--${side}`}>{formatPercent(view.unrealizedPnlPercent)}</span>
         <span className={`pq-row__chev ${isOpen ? 'pq-row__chev--open' : ''}`}>▾</span>
       </div>
@@ -148,6 +140,27 @@ export function PositionRow({ view, defaultMultiplier, isOpen, onToggle }: Posit
         </div>
       ) : null}
     </button>
+  );
+}
+
+// #4 时间 chip:开赛倒计时(⚽)/ 进行中 / 结算倒计时(⏱)/ 结算中。
+function TimerChip({ timer, t }: { timer: ReturnType<typeof marketTimer>; t: ReturnType<typeof useT> }) {
+  if (!timer) {
+    return null;
+  }
+  if (timer.kind === 'live') {
+    return <span className="pq-clock pq-clock--live">● {t('row.live')}</span>;
+  }
+  if (timer.kind === 'closed') {
+    return <span className="pq-clock pq-clock--closed">{t('row.settling')}</span>;
+  }
+  const isKickoff = timer.kind === 'kickoff';
+  const title = isKickoff ? t('row.kickoffIn', { label: timer.label }) : t('row.settleIn', { label: timer.label });
+  return (
+    <span className={`pq-clock pq-clock--${timer.urgency}`} title={title}>
+      {isKickoff ? '⚽' : '⏱'}
+      {timer.label}
+    </span>
   );
 }
 
