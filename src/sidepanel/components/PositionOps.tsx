@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { PositionView } from '@/lib/types';
 import { useT } from '@/sidepanel/store';
 import { AlertPanel } from './AlertPanel';
+import { ConditionalPanel } from './ConditionalPanel';
 import { OpenOrders } from './OpenOrders';
 import { OrderActions } from './OrderActions';
 import { OrderBookView } from './OrderBookView';
@@ -13,7 +14,7 @@ interface PositionOpsProps {
   multipliers: number[];
 }
 
-type OpsTab = 'trade' | 'stop' | 'alert';
+type OpsTab = 'trade' | 'stop' | 'alert' | 'cond';
 
 function formatCents(price: number): string {
   const c = (Number.isFinite(price) ? price : 0) * 100;
@@ -37,6 +38,7 @@ export function PositionOps({ view, multipliers }: PositionOpsProps) {
     { id: 'trade', label: t('order.trade') },
     { id: 'stop', label: t('stopLoss.title') },
     { id: 'alert', label: t('alert.tab') },
+    { id: 'cond', label: t('cond.tab') },
   ];
 
   return (
@@ -84,8 +86,10 @@ export function PositionOps({ view, multipliers }: PositionOpsProps) {
         <OrderActions book={view.book} multipliers={multipliers} position={view.position} />
       ) : tab === 'stop' ? (
         <StopLossPanel bestBid={view.bestBid} position={view.position} />
-      ) : (
+      ) : tab === 'alert' ? (
         <AlertPanel position={view.position} />
+      ) : (
+        <ConditionalPanel position={view.position} />
       )}
     </div>
   );

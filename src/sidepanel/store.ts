@@ -4,6 +4,7 @@ import type { DataSource, Snapshot } from '@/lib/datasource/types';
 import { roundDownShares, type PlaceSellResult } from '@/lib/trading/orders';
 import { StopLossMonitor, type StopLossMonitorStatuses, type StopLossTriggerDetails } from '@/lib/stoploss/monitor';
 import { AlertMonitor, type AlertTrigger } from '@/lib/alerts/alertMonitor';
+import { ConditionalMonitor, type ConditionalTriggerDetails } from '@/lib/conditional/conditionalMonitor';
 import { WsSource } from '@/lib/datasource/wsSource';
 import { getTodayPnl } from '@/lib/api/userPnl';
 import { getMarketMeta, type MarketMeta } from '@/lib/api/gammaApi';
@@ -18,6 +19,13 @@ import {
   type StopLossConfigs,
 } from '@/shared/stopLossConfig';
 import { readTargetMultipliers, writeTargetMultipliers, type TargetMultipliers } from '@/shared/targetMultipliers';
+import {
+  normalizeConditionalConfig,
+  readConditionalConfigs,
+  writeConditionalConfigs,
+  type ConditionalConfigPatch,
+  type ConditionalConfigs,
+} from '@/shared/conditionalConfig';
 import {
   hasAnyCondition,
   normalizePriceAlertConfig,
@@ -50,6 +58,9 @@ interface MonitorStore {
   stopLossStatuses: StopLossStatuses;
   // #3 到价提醒:每仓阈值配置(被动通知,不下单)。
   priceAlertConfigs: PriceAlertConfigs;
+  // #6 条件单/OCO:每仓离场策略配置 + 触发状态。
+  conditionalConfigs: ConditionalConfigs;
+  conditionalStatuses: ConditionalStatuses;
   targetMultipliers: TargetMultipliers;
   todayPnl: number | null;
   snapshot: Snapshot | null;
@@ -68,6 +79,11 @@ interface MonitorStore {
   loadPriceAlertConfigs: () => Promise<void>;
   setPriceAlert: (asset: string, patch: PriceAlertConfigPatch) => Promise<void>;
   clearAlertCondition: (asset: string, key: AlertConditionKey) => Promise<void>;
+  loadConditionalConfigs: () => Promise<void>;
+  armConditional: (asset: string, params?: ConditionalConfigPatch) => Promise<void>;
+  disarmConditional: (asset: string) => Promise<void>;
+  setConditionalParams: (asset: string, params: ConditionalConfigPatch) => Promise<void>;
+  executeConditional: (asset: string, details: ConditionalTriggerDetails) => Promise<void>;
   loadTargetMultipliers: () => Promise<void>;
   setTargetMultiplier: (asset: string, n: number) => void;
   fetchMarketMeta: (conditionIds: string[]) => Promise<void>;
@@ -103,10 +119,19 @@ export interface StopLossStatus {
 
 export type StopLossStatuses = Record<string, StopLossStatus>;
 
+export interface ConditionalStatus {
+  lastTriggeredAt: number;
+  lastResult: string | null;
+  lastError: string | null;
+}
+
+export type ConditionalStatuses = Record<string, ConditionalStatus>;
+
 let activeSource: DataSource | null = null;
 let activeUnsubscribe: (() => void) | null = null;
 let activeStopLossMonitor: StopLossMonitor | null = null;
 let activeAlertMonitor: AlertMonitor | null = null;
+let activeConditionalMonitor: ConditionalMonitor | null = null;
 let monitoringActive = false;
 // 目标倍数 N 的 debounce 落盘计时器(拖动停止 ~500ms 后写一次,不打爆 storage)。
 let targetMultipliersTimer: ReturnType<typeof setTimeout> | null = null;
@@ -116,6 +141,9 @@ const requestedConditionIds = new Set<string>();
 let monitorGeneration = 0;
 // gamma 拉取失败后的退避时点:避免失败 id 被移出集合后在每个行情帧紧密重试。
 let metaRetryAfter = 0;
+// #6 条件单提交失败后重试退避(避免拒单时每帧重触发);模拟成功后的重测间隔。
+const CONDITIONAL_RETRY_MS = 15_000;
+const CONDITIONAL_DRYRUN_RETEST_MS = 30_000;
 
 function stopActiveSource(): void {
   activeUnsubscribe?.();
@@ -126,6 +154,8 @@ function stopActiveSource(): void {
   activeStopLossMonitor = null;
   activeAlertMonitor?.reset();
   activeAlertMonitor = null;
+  activeConditionalMonitor?.reset();
+  activeConditionalMonitor = null;
 }
 
 function errorSnapshot(message: string): Snapshot {
@@ -235,6 +265,8 @@ const monitorStore = create<MonitorStore>((set, get) => ({
   stopLossConfigs: {},
   stopLossStatuses: {},
   priceAlertConfigs: {},
+  conditionalConfigs: {},
+  conditionalStatuses: {},
   targetMultipliers: {},
   todayPnl: null,
   snapshot: null,
@@ -310,6 +342,118 @@ const monitorStore = create<MonitorStore>((set, get) => ({
       return { priceAlertConfigs: { ...state.priceAlertConfigs, [asset]: projected } };
     });
     await writePriceAlertConfigs(get().priceAlertConfigs);
+  },
+
+  loadConditionalConfigs: async () => {
+    try {
+      set({ conditionalConfigs: await readConditionalConfigs() });
+    } catch {
+      set({ conditionalConfigs: {} });
+    }
+  },
+
+  armConditional: async (asset: string, params: ConditionalConfigPatch = {}) => {
+    const current = get().conditionalConfigs[asset];
+    const nextConfig = normalizeConditionalConfig({ ...current, ...params, armed: true });
+    const nextConfigs = { ...get().conditionalConfigs, [asset]: nextConfig };
+    await writeConditionalConfigs(nextConfigs);
+    set({ conditionalConfigs: nextConfigs });
+  },
+
+  disarmConditional: async (asset: string) => {
+    const current = get().conditionalConfigs[asset];
+    const nextConfig = normalizeConditionalConfig({ ...current, armed: false });
+    const nextConfigs = { ...get().conditionalConfigs, [asset]: nextConfig };
+    await writeConditionalConfigs(nextConfigs);
+    activeConditionalMonitor?.removeAsset(asset);
+    set({ conditionalConfigs: nextConfigs });
+  },
+
+  setConditionalParams: async (asset: string, params: ConditionalConfigPatch) => {
+    const current = get().conditionalConfigs[asset];
+    const nextConfig = normalizeConditionalConfig({ ...current, ...params });
+    const nextConfigs = { ...get().conditionalConfigs, [asset]: nextConfig };
+    await writeConditionalConfigs(nextConfigs);
+    set({ conditionalConfigs: nextConfigs });
+  },
+
+  // #6 条件单触发执行:与止损同走后台 CONDITIONAL_SELL(taker FAK + 资金上限 + 冷却 + dryRun)。
+  // 真实成交后解除武装(OCO:取消另一腿);dry-run 保持武装便于测试(monitor firedOnce 防重复)。
+  executeConditional: async (asset: string, details: ConditionalTriggerDetails) => {
+    const t = (key: I18nKey, params?: Record<string, string | number>) => translate(get().config.lang, key, params);
+    const legLabel = details.leg === 'takeProfit' ? t('cond.legTakeProfit') : t('cond.legStopExit');
+    const position = get().snapshot?.positions.find((item) => item.asset === asset);
+    const positionSize = position?.size ?? details.sizeNow;
+    const qty = roundDownShares(details.fraction * details.sizeNow);
+    const formattedQty = qty.toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+    const setStatus = (patch: Partial<ConditionalStatus>) =>
+      set((state) => ({
+        conditionalStatuses: {
+          ...state.conditionalStatuses,
+          [asset]: {
+            lastTriggeredAt: state.conditionalStatuses[asset]?.lastTriggeredAt ?? 0,
+            lastResult: state.conditionalStatuses[asset]?.lastResult ?? null,
+            lastError: state.conditionalStatuses[asset]?.lastError ?? null,
+            ...patch,
+          },
+        },
+      }));
+
+    setStatus({ lastTriggeredAt: Date.now(), lastResult: t('cond.submitting', { leg: legLabel, qty: formattedQty }), lastError: null });
+
+    if (!position || !Number.isFinite(qty) || qty <= 0) {
+      const message = !position ? t('stopLoss.positionGone') : t('stopLoss.invalidQuantity');
+      setStatus({ lastResult: null, lastError: message });
+      notifyDesktop(t('cond.failedTitle'), message);
+      return;
+    }
+
+    try {
+      const response = await sendRuntimeMessage<PlaceOrderOkResponse | ErrorResponse>({
+        type: 'CONDITIONAL_SELL',
+        tokenID: asset,
+        qty,
+        bestBid: details.priceNow,
+        negRisk: position.negativeRisk,
+        avgPrice: position.avgPrice,
+        positionSize,
+      });
+      if ('error' in response) {
+        throw new Error(response.error);
+      }
+      const result = response.data;
+      const params = {
+        leg: legLabel,
+        size: result.size.toLocaleString(undefined, { maximumFractionDigits: 2 }),
+        price: result.price.toFixed(4),
+      };
+      const message = result.dryRun ? t('cond.resultDryRun', params) : t('cond.resultSubmitted', params);
+      setStatus({ lastResult: message, lastError: null });
+      notifyDesktop(result.dryRun ? t('cond.dryRunTitle') : t('cond.submittedTitle'), message);
+
+      if (result.dryRun) {
+        // 模拟成功:不解除武装,设退避便于反复测试(模拟不动真钱,可安全重触发)。
+        activeConditionalMonitor?.settle(asset, CONDITIONAL_DRYRUN_RETEST_MS);
+        return;
+      }
+      // OCO:仅在有实际成交量时才解除武装(取消另一腿);零/未知成交不解除、也不解除 blocked
+      //(保持静默以防同腿重复卖出——比误取消另一腿保护更安全)。
+      const num = (raw?: string): number => {
+        const n = Number(raw);
+        return Number.isFinite(n) ? n : 0;
+      };
+      const filled = num(result.makingAmount) > 0 || num(result.takingAmount) > 0;
+      if (filled) {
+        await get().disarmConditional(asset);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setStatus({ lastResult: null, lastError: message });
+      notifyDesktop(t('cond.failedTitle'), message);
+      // 提交失败(拒单/上限/冷却/网络):未发生卖出,解除 blocked 并退避,使条件单不被静默禁用。
+      activeConditionalMonitor?.settle(asset, CONDITIONAL_RETRY_MS);
+    }
   },
 
   loadTargetMultipliers: async () => {
@@ -497,6 +641,9 @@ const monitorStore = create<MonitorStore>((set, get) => ({
     activeAlertMonitor = new AlertMonitor((trigger) => {
       void handleAlertTrigger(get, trigger);
     });
+    activeConditionalMonitor = new ConditionalMonitor((asset, details) => {
+      void get().executeConditional(asset, details);
+    });
 
     activeSource = source;
     activeUnsubscribe = source.subscribe((snapshot) => {
@@ -504,6 +651,8 @@ const monitorStore = create<MonitorStore>((set, get) => ({
       const stopLossMonitorStatuses = activeStopLossMonitor?.processSnapshot(snapshot, get().stopLossConfigs) ?? {};
       // #3 到价提醒:逐 tick 评估阈值;触发只回调通知,不改 store(避免行情帧多余渲染)。
       activeAlertMonitor?.processSnapshot(snapshot, get().priceAlertConfigs);
+      // #6 条件单/OCO:逐 tick 评估止盈/离场腿;触发回调 executeConditional。
+      activeConditionalMonitor?.processSnapshot(snapshot, get().conditionalConfigs);
       set((state) => ({
         snapshot,
         isLoading: snapshot.lastUpdated === 0 && snapshot.error === null,

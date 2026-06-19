@@ -90,6 +90,17 @@ export interface StopLossSellRequest {
   positionSize?: number;
 }
 
+// #6 条件单/OCO 触发的自动卖出。结构同止损,但后台据「条件单已武装」而非「止损已武装」校验。
+export interface ConditionalSellRequest {
+  type: 'CONDITIONAL_SELL';
+  tokenID: string;
+  qty: number;
+  bestBid: number;
+  negRisk?: boolean;
+  avgPrice?: number;
+  positionSize?: number;
+}
+
 export interface AuthStatusResponse {
   hasKey: boolean;
   // 钱包私钥是否已解密进会话(可签名)。
@@ -138,6 +149,7 @@ export type RuntimeMessage =
   | PrepareOrderRequest
   | ConfirmOrderRequest
   | StopLossSellRequest
+  | ConditionalSellRequest
   | GetOpenOrdersRequest
   | CancelOrderRequest
   | CancelAllRequest;

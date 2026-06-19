@@ -16,6 +16,7 @@ import { placeSell, prepareSellOrder, type PlaceSellParams } from '@/lib/trading
 import { readConfig } from '@/shared/config';
 import type { AuthStatusResponse, RuntimeMessage, PongResponse } from '@/shared/messages';
 import { readStopLossConfigs } from '@/shared/stopLossConfig';
+import { readConditionalConfigs } from '@/shared/conditionalConfig';
 import type { ClobClient, TickSize } from '@polymarket/clob-client-v2';
 
 const MIN_PASSWORD_LENGTH = 8;
@@ -29,6 +30,11 @@ const pendingOrders = new Map<string, { params: PlaceSellParams; createdAt: numb
 // 后台层止损冷却:面板 monitor 的冷却仅在面板内存,后台据此防止重放消息在冷却期内连发真实卖出(H1)。
 const STOP_LOSS_BG_COOLDOWN_MS = 60_000;
 const stopLossCooldownUntil = new Map<string, number>();
+// #6 条件单后台冷却:同止损,防重放消息在冷却期内连发真实卖出。
+const CONDITIONAL_BG_COOLDOWN_MS = 60_000;
+const conditionalCooldownUntil = new Map<string, number>();
+// 条件单 in-flight 锁:防同一 asset 的并发 CONDITIONAL_SELL 在 placeSell 完成前同时通过冷却检查而双重提交。
+const conditionalInFlight = new Set<string>();
 
 function prunePendingOrders(): void {
   const now = Date.now();
@@ -125,6 +131,30 @@ async function buildStopLossSellParams(
     tickSize,
     dryRun: config.dryRun,
     // 止损滑点:向下扫单,确保急跌/深砸时也能及时成交而非被 Kill。
+    slippage,
+  };
+}
+
+async function buildConditionalSellParams(
+  client: ClobClient,
+  message: Extract<RuntimeMessage, { type: 'CONDITIONAL_SELL' }>,
+): Promise<PlaceSellParams> {
+  const [config, conditionalConfigs] = await Promise.all([readConfig(), readConditionalConfigs()]);
+  const tickSize = await getCachedTickSize(client, message.tokenID);
+  const perPosition = conditionalConfigs[message.tokenID]?.slippage;
+  const slippage = perPosition != null ? perPosition : config.stopLossSlippage;
+
+  return {
+    tokenID: message.tokenID,
+    mode: 'taker',
+    price: message.bestBid,
+    size: message.qty,
+    negRisk: message.negRisk,
+    avgPrice: message.avgPrice,
+    positionSize: message.positionSize,
+    bestBid: message.bestBid,
+    tickSize,
+    dryRun: config.dryRun,
     slippage,
   };
 }
@@ -319,6 +349,63 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResp
             stopLossCooldownUntil.set(message.tokenID, now + STOP_LOSS_BG_COOLDOWN_MS);
           }
           sendResponse({ ok: true, data: result });
+        } catch (error) {
+          sendResponse({ error: errorMessage(error) });
+        }
+      })();
+      return true;
+    }
+    case 'CONDITIONAL_SELL': {
+      void (async () => {
+        try {
+          const conditionalConfigs = await readConditionalConfigs();
+          if (!conditionalConfigs[message.tokenID]?.armed) {
+            throw new Error('Conditional order is not armed for this asset.');
+          }
+
+          // 卖出量必须为正且不超过声明持仓量(声明量须为有限正数),拒绝篡改/陈旧/非法的 qty。
+          const declaredSize = message.positionSize;
+          if (
+            !(message.qty > 0) ||
+            typeof declaredSize !== 'number' ||
+            !Number.isFinite(declaredSize) ||
+            declaredSize <= 0 ||
+            message.qty > declaredSize
+          ) {
+            throw new Error('Invalid conditional quantity.');
+          }
+
+          // in-flight 锁:同一 asset 已有提交在途则拒绝,避免冷却设置前的并发双提交。
+          if (conditionalInFlight.has(message.tokenID)) {
+            throw new Error('Conditional submission already in flight for this asset.');
+          }
+
+          const now = Date.now();
+          const [client, config] = await Promise.all([getTradingClient(), readConfig()]);
+
+          if (!config.dryRun && (conditionalCooldownUntil.get(message.tokenID) ?? 0) > now) {
+            throw new Error('Conditional cooldown active for this asset.');
+          }
+
+          conditionalInFlight.add(message.tokenID);
+          try {
+            const params = await buildConditionalSellParams(client, message);
+            const prepared = prepareSellOrder(params);
+            // 与止损共用自动卖出资金上限。
+            if (prepared.estAmount > config.stopLossMaxUsd) {
+              throw new Error(
+                `Conditional estimate $${prepared.estAmount.toFixed(2)} exceeds auto-sell cap $${config.stopLossMaxUsd.toFixed(2)}.`,
+              );
+            }
+
+            const result = await placeSell(client, params);
+            if (!config.dryRun) {
+              conditionalCooldownUntil.set(message.tokenID, now + CONDITIONAL_BG_COOLDOWN_MS);
+            }
+            sendResponse({ ok: true, data: result });
+          } finally {
+            conditionalInFlight.delete(message.tokenID);
+          }
         } catch (error) {
           sendResponse({ error: errorMessage(error) });
         }

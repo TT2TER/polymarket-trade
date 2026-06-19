@@ -1,0 +1,121 @@
+/* #6 条件单 / OCO 面板 */
+.pq-cond {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px 0;
+}
+
+.pq-cond__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pq-cond__badge {
+  border-radius: var(--pq-radius-badge);
+  border: 1px solid var(--t-up-bd);
+  background: var(--t-up-bg);
+  color: var(--c-up);
+  padding: 2px 7px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.pq-cond__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.pq-cond__field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pq-cond__label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.3px;
+  color: var(--c-muted);
+}
+
+.pq-cond__input {
+  width: 100%;
+  border: 1px solid var(--c-border);
+  border-radius: var(--pq-radius-input);
+  background: var(--c-surface);
+  color: var(--c-text);
+  padding: 6px 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pq-cond__input:disabled {
+  opacity: 0.6;
+}
+
+.pq-cond__input:focus {
+  outline: none;
+  border-color: var(--c-blue);
+}
+
+.pq-cond__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pq-cond__btn {
+  flex: 1 1 auto;
+  border: 1px solid var(--c-border);
+  border-radius: var(--pq-radius-input);
+  background: var(--c-surface);
+  color: var(--c-text);
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pq-cond__btn:hover:not(:disabled) {
+  border-color: var(--c-blue);
+}
+
+.pq-cond__btn:disabled {
+  opacity: 0.5;
+}
+
+.pq-cond__btn--arm {
+  border-color: var(--t-up-bd);
+  background: var(--t-up-bg);
+  color: var(--c-up);
+}
+
+.pq-cond__btn--off {
+  border-color: var(--t-down-bd);
+  background: var(--t-down-bg);
+  color: var(--c-down);
+}
+
+.pq-cond__hint {
+  margin: 0;
+  font-size: 9.5px;
+  line-height: 1.4;
+  color: var(--c-muted2);
+}
+
+.pq-cond__status {
+  margin: 0;
+  font-size: 10px;
+  color: var(--c-muted);
+}
+
+.pq-cond__error {
+  margin: 0;
+  font-size: 10px;
+  color: var(--c-loss);
+}

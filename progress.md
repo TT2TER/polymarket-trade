@@ -342,3 +342,12 @@ i18n:AuthBar 文案集中在 `TEXT` 常量,便于 P6 抽取。
 - 2026-06-20:**#5 风险敞口总览完成**(纯聚合展示,零交易副作用)。
   - `exposure.ts`(computeExposure 按 event 聚合非结算仓 currentValue + share;foldExposure 取前 6 + 其他;单 event 返回空=无信息量)、`ExposureBar.tsx/.css`(条形 + %,单一 event ≥40% 红色高亮),App 在汇总条下渲染 + i18n。价值口径与 EquitySummary 一致。
   - Codex 交叉验证:0 Crit/High/Med,2 Low 已加固(`__other__` 改 isOther 标志位避免撞名;share 加 finiteShare 防 Infinity/Infinity=NaN)。typecheck+build + 聚合/折叠 sanity 通过。
+- 2026-06-20:**#6 条件单 / OCO 离场策略完成**(交易路径,镜像已审的止损 money-path)。
+  - 两条腿 OCO:止盈(价≥X 卖 a%)+ 离场(价≤Y 卖 b%),任一成交后解除武装。`conditionalConfig.ts` + `conditionalMonitor.ts`(逐 tick 评估,止盈优先,blocked+retryAfter 模型)+ background `CONDITIONAL_SELL`(镜像 STOP_LOSS_SELL:armed 校验/qty≤size/资金上限 stopLossMaxUsd/冷却/placeSell H1/in-flight 锁)+ store(arm/disarm/setParams/executeConditional)+ `ConditionalPanel.tsx` + 'cond' tab + i18n。遵守 dryRun。
+  - Codex money-path 审查 0 Crit/2 High/2 Med/3 Low,关键已修:
+    - HIGH 失败后 firedOnce 卡死致条件单静默失效 → 改 blocked+settle 模型,提交失败 catch 里 settle(15s 退避)解除 blocked,不再静默禁用。
+    - HIGH 触发/下单用 curPrice 兜底弱于止损 → 改为必须真实 bestBid>0(无买价跳帧),与止损一致。
+    - MED OCO 依据 accepted 而非成交量 → 改为仅 makingAmount/takingAmount>0(真实成交)才 disarm;零/未知成交保持 blocked 不解除(防同腿重复卖,比误取消另一腿更安全);真实成功永不 reset(杜绝双卖)。
+    - MED 后台冷却非 in-flight 锁 → 加 conditionalInFlight Set 防并发双提交。
+    - LOW H2 declaredSize 加 finite/正数校验;dryRun 成功 settle(30s)便于重测。
+  - 立即触发语义(武装时已满足即卖)保留,受 dryRun+上限兜底(Codex LOW,已在 hint 说明)。monitor latch/leg 优先/无价帧 sanity + typecheck + build 通过。⚠ Chrome dryRun 触发实测待用户。
