@@ -1,0 +1,206 @@
+/* #2 成交历史弹窗 */
+.pq-hist__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 14px;
+}
+
+.pq-hist {
+  display: flex;
+  width: 100%;
+  max-width: 420px;
+  max-height: 86vh;
+  flex-direction: column;
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  background: var(--c-surface);
+}
+
+.pq-hist__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--c-border);
+  padding: 12px 14px;
+}
+
+.pq-hist__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pq-hist__x {
+  border: 0;
+  background: transparent;
+  color: var(--c-muted);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.pq-hist__summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.pq-hist__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pq-hist__label {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.3px;
+  color: var(--c-muted);
+  text-transform: uppercase;
+}
+
+.pq-hist__num {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text-strong);
+}
+
+.pq-hist__num.pq-hist__pnl--up,
+.pq-hist__pnl.pq-hist__pnl--up {
+  color: var(--c-gain);
+}
+
+.pq-hist__num.pq-hist__pnl--down,
+.pq-hist__pnl.pq-hist__pnl--down {
+  color: var(--c-loss);
+}
+
+.pq-hist__warn {
+  margin: 0;
+  padding: 8px 14px;
+  font-size: 10px;
+  color: var(--c-target);
+  background: var(--t-blue-bg, transparent);
+}
+
+.pq-hist__list {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 4px 0;
+}
+
+.pq-hist__msg,
+.pq-hist__err {
+  margin: 0;
+  padding: 16px 14px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--c-muted);
+}
+
+.pq-hist__err {
+  color: var(--c-loss);
+}
+
+.pq-hist__row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border-bottom: 1px solid var(--c-border);
+  padding: 8px 14px;
+}
+
+.pq-hist__l1 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.pq-hist__side {
+  flex: 0 0 auto;
+  border-radius: var(--pq-radius-badge);
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.pq-hist__side--buy {
+  background: var(--t-blue-bg);
+  color: var(--c-blue);
+  border: 1px solid var(--t-blue-bd);
+}
+
+.pq-hist__side--sell {
+  background: var(--t-loss-bg);
+  color: var(--c-loss);
+  border: 1px solid var(--t-loss-bd);
+}
+
+.pq-hist__market {
+  overflow: hidden;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pq-hist__l2 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pq-hist__when {
+  flex: 0 0 auto;
+  color: var(--c-muted2);
+}
+
+.pq-hist__detail {
+  color: var(--c-muted);
+  text-align: right;
+}
+
+.pq-hist__foot {
+  display: flex;
+  gap: 8px;
+  border-top: 1px solid var(--c-border);
+  padding: 10px 14px;
+}
+
+.pq-hist__btn {
+  flex: 1 1 auto;
+  border: 1px solid var(--c-border);
+  border-radius: var(--pq-radius-input);
+  background: var(--c-bg);
+  color: var(--c-text);
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pq-hist__btn:hover:not(:disabled) {
+  border-color: var(--c-blue);
+}
+
+.pq-hist__btn:disabled {
+  opacity: 0.5;
+}
+
+.pq-hist__btn--primary {
+  border-color: var(--c-blue);
+  background: var(--t-blue-bg);
+  color: var(--c-blue);
+}

@@ -4,6 +4,7 @@ import { BatchBar } from './components/BatchBar';
 import { EquitySummary } from './components/EquitySummary';
 import { EventGroup } from './components/EventGroup';
 import { ExposureBar } from './components/ExposureBar';
+import { TradeHistory } from './components/TradeHistory';
 import { SettingsBar } from './components/SettingsBar';
 import { useMonitorStore, useT } from './store';
 import type { Lang } from '@/shared/i18n';
@@ -34,6 +35,8 @@ export function App() {
   // 手风琴:同时只展开一个持仓(跨事件组互斥)。仅 UI 局部状态。
   const [openAsset, setOpenAsset] = useState<string | null>(null);
   const toggleOpen = (asset: string) => setOpenAsset((current) => (current === asset ? null : asset));
+  // #2 成交历史弹窗开关。
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     let disposed = false;
@@ -155,6 +158,9 @@ export function App() {
               <span>{isLoading ? t('app.loadingPositions') : t('app.snapshotReady')}</span>
               <div className="pq-toolbar__right">
                 <time className="pq-toolbar__time">{lastUpdatedText}</time>
+                <button className="pq-toolbar__refresh" onClick={() => setShowHistory(true)} type="button">
+                  {t('history.button')}
+                </button>
                 <button className="pq-toolbar__refresh" onClick={() => refresh()} type="button" title={t('app.refreshNow')}>
                   ↻ {t('app.refresh')}
                 </button>
@@ -179,6 +185,8 @@ export function App() {
           <span className="pq-footer__ver">{t('footer.version')}</span>
         </footer>
       </section>
+
+      {showHistory ? <TradeHistory onClose={() => setShowHistory(false)} /> : null}
     </main>
   );
 }

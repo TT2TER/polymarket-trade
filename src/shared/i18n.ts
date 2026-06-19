@@ -92,6 +92,22 @@ const DICTIONARY = {
   'batch.result': { zh: '完成:{ok} 成功 · {fail} 失败', en: 'Done: {ok} ok · {fail} failed' },
   'batch.dryRunNote': { zh: '当前为模拟交易,批量也只模拟。', en: 'Dry-run is on — batch is simulated too.' },
 
+  // #2 成交历史
+  'history.button': { zh: '流水', en: 'History' },
+  'history.title': { zh: '成交历史 · 已实现盈亏', en: 'Trade history · realized PnL' },
+  'history.loading': { zh: '加载中…', en: 'Loading…' },
+  'history.empty': { zh: '暂无成交记录', en: 'No trades yet' },
+  'history.totalRealized': { zh: '总已实现盈亏', en: 'Total realized' },
+  'history.buyCost': { zh: '买入成本', en: 'Buy cost' },
+  'history.sellProceeds': { zh: '卖出所得', en: 'Sell proceeds' },
+  'history.truncated': {
+    zh: '⚠ 历史可能被截断(仅最近若干笔),早期买入缺失会使已实现盈亏偏高。',
+    en: '⚠ History may be truncated (recent fills only); missing early buys can overstate realized PnL.',
+  },
+  'history.export': { zh: '导出 CSV', en: 'Export CSV' },
+  'history.refresh': { zh: '刷新', en: 'Refresh' },
+  'history.close': { zh: '关闭', en: 'Close' },
+
   'ops.targetPrices': { zh: '回本翻倍价', en: 'Target prices' },
   'ops.capped': { zh: '不可达', en: 'capped' },
   'ops.settleMultiple': { zh: '封盘 {n}×', en: 'Settle {n}×' },

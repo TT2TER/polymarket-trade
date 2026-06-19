@@ -7,6 +7,8 @@ import { AlertMonitor, type AlertTrigger } from '@/lib/alerts/alertMonitor';
 import { ConditionalMonitor, type ConditionalTriggerDetails } from '@/lib/conditional/conditionalMonitor';
 import { WsSource } from '@/lib/datasource/wsSource';
 import { getTodayPnl } from '@/lib/api/userPnl';
+import { getTrades } from '@/lib/api/tradesApi';
+import { computeTradeHistory, type TradeHistory } from '@/lib/calc/tradeHistory';
 import { getMarketMeta, type MarketMeta } from '@/lib/api/gammaApi';
 import { samplePriceHistory, type PriceHistory } from '@/lib/calc/priceHistory';
 import { DEFAULT_CONFIG, readConfig, writeConfig, type AppConfig } from '@/shared/config';
@@ -63,6 +65,10 @@ interface MonitorStore {
   conditionalStatuses: ConditionalStatuses;
   targetMultipliers: TargetMultipliers;
   todayPnl: number | null;
+  // #2 成交历史 + 已实现盈亏(data-api/trades 真实成交,平均成本法回放);on-demand 拉取。
+  tradeHistory: TradeHistory | null;
+  tradesLoading: boolean;
+  tradesError: string | null;
   snapshot: Snapshot | null;
   // #1 价格走势:每个 asset 的内存级价格序列(关面板即清),由行情合帧回调采样。
   priceHistory: PriceHistory;
@@ -88,6 +94,7 @@ interface MonitorStore {
   setTargetMultiplier: (asset: string, n: number) => void;
   fetchMarketMeta: (conditionIds: string[]) => Promise<void>;
   fetchTodayPnl: () => Promise<void>;
+  fetchTrades: () => Promise<void>;
   armStopLoss: (asset: string, params?: StopLossConfigPatch) => Promise<void>;
   disarmStopLoss: (asset: string) => Promise<void>;
   setStopLossParams: (asset: string, params: StopLossConfigPatch) => Promise<void>;
@@ -269,6 +276,9 @@ const monitorStore = create<MonitorStore>((set, get) => ({
   conditionalStatuses: {},
   targetMultipliers: {},
   todayPnl: null,
+  tradeHistory: null,
+  tradesLoading: false,
+  tradesError: null,
   snapshot: null,
   priceHistory: {},
   marketMeta: {},
@@ -521,6 +531,29 @@ const monitorStore = create<MonitorStore>((set, get) => ({
       set({ todayPnl: pnl });
     } catch {
       // 网络/接口波动不影响主功能,保留上次值。
+    }
+  },
+
+  // #2 成交历史:按地址拉真实成交并以平均成本法回放算每笔/总已实现盈亏。on-demand(打开流水视图时)。
+  fetchTrades: async () => {
+    const address = get().config.address;
+    if (!address) {
+      set({ tradeHistory: null, tradesError: null, tradesLoading: false });
+      return;
+    }
+    set({ tradesLoading: true, tradesError: null });
+    try {
+      const limit = 500;
+      const trades = await getTrades(address, limit);
+      const history = computeTradeHistory(trades);
+      // 命中条数上限 → 历史可能被截断,早期买入缺失会高估已实现盈亏(与 excess 触发的 truncated 合并)。
+      if (trades.length >= limit) {
+        history.truncated = true;
+      }
+      set({ tradeHistory: history, tradesLoading: false });
+    } catch (error) {
+      // 失败时清空旧数据,避免与错误并列展示造成误解。
+      set({ tradeHistory: null, tradesLoading: false, tradesError: error instanceof Error ? error.message : String(error) });
     }
   },
 

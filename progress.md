@@ -361,4 +361,8 @@ i18n:AuthBar 文案集中在 `TEXT` 常量,便于 P6 抽取。
     - MED N 上限仅下钳 → 上钳 20。LOW 弹窗加 aria-modal。
     - HIGH 准备→确认间仓位变化:与现有单笔 prepare/confirm 同窗口,靠交易所余额兜底(一致,未加重),记录待后续。
   - typecheck+build 通过。⚠ Chrome dryRun 批量实测待用户。
-- P7 进度:#1/#3/#4/#5/#6/#7 已完成(逐个 Codex 交叉验证 + 单独 commit)。**剩 #2 成交历史(认证 user WS 对账)**。分支 feat/p7-decision-tools。
+- 2026-06-20:**#2 成交历史 + 已实现盈亏完成**(纯只读,无资金路径)。
+  - **偏离原计划(认证 user WS):改用公开 REST `data-api/trades?user=`**(与 /positions 同族,只读无凭据,返回真实成交含 txHash)。同样「只记真实成交」的准确性,但无需把 L2 凭据带进面板 / 无需在易回收的 SW 维持长连 WS,风险与复杂度都低得多;且完整成交日志可用平均成本法回放算每笔卖出已实现盈亏(无成本基缺口)。
+  - `tradesApi.ts`(getTrades + normalize,脏 side/size 丢弃)、`tradeHistory.ts`(computeTradeHistory 平均成本法回放:每笔/总已实现盈亏 + buyCost/sellProceeds + truncated;tradeHistoryToCsv 通用转义)、store(tradeHistory/loading/error + fetchTrades on-demand,命中 limit 标 truncated)、`TradeHistory.tsx/.css`(弹窗 + 汇总 + 截断警告 + CSV 导出 Blob 下载)+ App 工具栏「流水」按钮 + i18n。
+  - Codex 审查 0 Crit;High(截断高估已实现盈亏)以 truncated 标志 + UI 警告 + 命中 limit 即标记 缓解(缺失早期买入无法凭空补成本基);Med(无地址 loading 卡死/失败展示 stale/脏 side 当 BUY)已修;Low(CSV 转义/行 key)已修。平均成本法 sanity(多 asset/截断/降序/口径)+ typecheck+build 通过。⚠ Chrome 内展示 + CSV 导出待用户实测。
+- ✅ **P7(#1–#7)全部实现完成**,逐个「实现→Codex 交叉验证→修复→单独 commit」。分支 feat/p7-decision-tools,7 个 feature commit。⚠ 均为代码 + 离线 sanity 验证;Chrome 内实跑(尤其交易类 #6 条件单/#7 批量的 dryRun 触发)待用户确认。建议先 dryRun 全程验证再考虑实盘。
