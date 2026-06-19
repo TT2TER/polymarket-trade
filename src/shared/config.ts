@@ -17,6 +17,8 @@ export interface AppConfig {
   dryRun: boolean;
   maxOrderUsd: number;
   stopLossMaxUsd: number;
+  // #7 批量操作总额上限(一次批量所有腿预计金额之和不得超过);独立于单笔 maxOrderUsd。
+  batchMaxUsd: number;
   // 止损卖单滑点容忍:FAK 限价 = bestBid×(1−slippage),向下扫单确保及时成交(0~0.5)。
   stopLossSlippage: number;
 }
@@ -37,6 +39,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   dryRun: false,
   maxOrderUsd: 100,
   stopLossMaxUsd: 1000,
+  batchMaxUsd: 2000,
   stopLossSlippage: 0.05,
 };
 
@@ -99,6 +102,7 @@ function normalizeConfig(value: Partial<AppConfig> | undefined): AppConfig {
     dryRun: typeof value?.dryRun === 'boolean' ? value.dryRun : DEFAULT_CONFIG.dryRun,
     maxOrderUsd: clampPositiveNumber(value?.maxOrderUsd, MIN_MAX_ORDER_USD, DEFAULT_CONFIG.maxOrderUsd),
     stopLossMaxUsd: clampPositiveNumber(value?.stopLossMaxUsd, MIN_MAX_ORDER_USD, DEFAULT_CONFIG.stopLossMaxUsd),
+    batchMaxUsd: clampPositiveNumber(value?.batchMaxUsd, MIN_MAX_ORDER_USD, DEFAULT_CONFIG.batchMaxUsd),
     stopLossSlippage: clampFraction(value?.stopLossSlippage, 0, 0.5, DEFAULT_CONFIG.stopLossSlippage),
   };
 }

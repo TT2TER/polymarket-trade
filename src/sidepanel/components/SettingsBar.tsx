@@ -33,6 +33,7 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
   const [dryRun, setDryRun] = useState(config.dryRun);
   const [maxOrderUsd, setMaxOrderUsd] = useState(String(config.maxOrderUsd));
   const [stopLossMaxUsd, setStopLossMaxUsd] = useState(String(config.stopLossMaxUsd));
+  const [batchMaxUsd, setBatchMaxUsd] = useState(String(config.batchMaxUsd));
   const [hideSettled, setHideSettled] = useState(config.hideSettled);
   const [showSummary, setShowSummary] = useState(config.showSummary);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +44,7 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
     setDryRun(config.dryRun);
     setMaxOrderUsd(String(config.maxOrderUsd));
     setStopLossMaxUsd(String(config.stopLossMaxUsd));
+    setBatchMaxUsd(String(config.batchMaxUsd));
     setHideSettled(config.hideSettled);
     setShowSummary(config.showSummary);
   }, [config]);
@@ -68,6 +70,7 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
     try {
       const parsedMaxOrderUsd = Number(maxOrderUsd);
       const parsedStopLossMaxUsd = Number(stopLossMaxUsd);
+      const parsedBatchMaxUsd = Number(batchMaxUsd);
       // 轮询间隔不在 UI 暴露,沿用 config 现值。止损滑点已移到每仓(止损 Tab)。
       await setConfig({
         ...config,
@@ -78,6 +81,7 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
         maxOrderUsd: Number.isFinite(parsedMaxOrderUsd) && parsedMaxOrderUsd > 0 ? parsedMaxOrderUsd : config.maxOrderUsd,
         stopLossMaxUsd:
           Number.isFinite(parsedStopLossMaxUsd) && parsedStopLossMaxUsd > 0 ? parsedStopLossMaxUsd : config.stopLossMaxUsd,
+        batchMaxUsd: Number.isFinite(parsedBatchMaxUsd) && parsedBatchMaxUsd > 0 ? parsedBatchMaxUsd : config.batchMaxUsd,
       });
       setIsOpen(false);
     } catch (saveError) {
@@ -265,6 +269,17 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
                 step="1"
                 type="number"
                 value={stopLossMaxUsd}
+              />
+            </label>
+            <label className="pq-field">
+              <span>{t('settings.batchMaxUsd')}</span>
+              <input
+                className="pq-input"
+                min="0.01"
+                onChange={(event) => setBatchMaxUsd(event.target.value)}
+                step="1"
+                type="number"
+                value={batchMaxUsd}
               />
             </label>
           </div>

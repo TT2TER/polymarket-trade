@@ -351,3 +351,14 @@ i18n:AuthBar 文案集中在 `TEXT` 常量,便于 P6 抽取。
     - MED 后台冷却非 in-flight 锁 → 加 conditionalInFlight Set 防并发双提交。
     - LOW H2 declaredSize 加 finite/正数校验;dryRun 成功 settle(30s)便于重测。
   - 立即触发语义(武装时已满足即卖)保留,受 dryRun+上限兜底(Codex LOW,已在 hint 说明)。monitor latch/leg 优先/无价帧 sanity + typecheck + build 通过。⚠ Chrome dryRun 触发实测待用户。
+- 2026-06-20:**#7 批量 / 组合操作完成**(交易路径)。
+  - 三动作:平所有亏损仓(taker 全平)、盈利仓挂 N× 止盈(limitN,N×均价≤$1 才入选)、撤所有挂单。`BatchBar.tsx/.css`:逐腿复用已审单笔 prepare→confirm(每腿仍受 H1/H2/maxOrderUsd);确认弹窗列每腿方向/量/价/合计;新增独立批量总额上限 `config.batchMaxUsd`(默认 2000)+ SettingsBar 输入 + i18n。App 工具栏下渲染(仅 authenticated)。
+  - Codex money-path 审查 2 Crit/2 High/3 Med,关键已修:
+    - CRIT 候选腿未按 asset 去重(data-api 重复行致重复卖)→ open 按 asset 去重。
+    - CRIT dryRun 显示读当前 config 而非各腿 prepare 时值(准备→确认间切换致模拟/实盘混示)→ 固化 `leg.dryRun`(来自 preview),弹窗 note 按各腿判定。
+    - HIGH batchMaxUsd 仅 UI disabled → confirmBatch 内再次校验总额拦截。
+    - HIGH/MED 快速双击重复提交 → inFlight ref 同步去抖。
+    - MED N 上限仅下钳 → 上钳 20。LOW 弹窗加 aria-modal。
+    - HIGH 准备→确认间仓位变化:与现有单笔 prepare/confirm 同窗口,靠交易所余额兜底(一致,未加重),记录待后续。
+  - typecheck+build 通过。⚠ Chrome dryRun 批量实测待用户。
+- P7 进度:#1/#3/#4/#5/#6/#7 已完成(逐个 Codex 交叉验证 + 单独 commit)。**剩 #2 成交历史(认证 user WS 对账)**。分支 feat/p7-decision-tools。
