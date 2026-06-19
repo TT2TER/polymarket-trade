@@ -339,3 +339,6 @@ i18n:AuthBar 文案集中在 `TEXT` 常量,便于 P6 抽取。
   - `priceAlertConfig.ts`(每仓阈值:价≥/≤、盈亏%≥/≤、市值≥;normalize/clamp;chrome.storage.local)、`alertMonitor.ts`(latch 防抖:跨越才触发、回落重新武装、一次性 disabledOneShot;价格缺失帧保留 runtime;非有限指标跳过)、store(priceAlertConfigs + load/setPriceAlert/clearAlertCondition + handleAlertTrigger 通知;复用 notifyDesktop)、`AlertPanel.tsx`(5 输入+repeat+enable)+ PositionOps 'alert' tab + App 启动加载 + i18n。
   - Codex 交叉验证(3 项已修):HIGH 同帧多个一次性触发并发清阈值竞态→改 `clearAlertCondition` 函数式 set 原子合并 + 持久化 get() 最新全量;MED 价格缺失帧裁剪 runtime 破坏 latch→在位持仓恒保留 runtime;LOW pnl NaN→非有限指标跳过。
   - 离线 sanity:latch 一次性/重复/重新武装语义全过;typecheck+build 通过。⚠ Chrome 触发通知待用户实测。
+- 2026-06-20:**#5 风险敞口总览完成**(纯聚合展示,零交易副作用)。
+  - `exposure.ts`(computeExposure 按 event 聚合非结算仓 currentValue + share;foldExposure 取前 6 + 其他;单 event 返回空=无信息量)、`ExposureBar.tsx/.css`(条形 + %,单一 event ≥40% 红色高亮),App 在汇总条下渲染 + i18n。价值口径与 EquitySummary 一致。
+  - Codex 交叉验证:0 Crit/High/Med,2 Low 已加固(`__other__` 改 isOther 标志位避免撞名;share 加 finiteShare 防 Infinity/Infinity=NaN)。typecheck+build + 聚合/折叠 sanity 通过。

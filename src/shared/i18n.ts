@@ -51,6 +51,10 @@ const DICTIONARY = {
   'ops.capped': { zh: '不可达', en: 'capped' },
   'ops.settleMultiple': { zh: '封盘 {n}×', en: 'Settle {n}×' },
 
+  'exposure.title': { zh: '风险敞口(按事件)', en: 'Exposure (by event)' },
+  'exposure.other': { zh: '其他', en: 'Other' },
+  'exposure.concentrated': { zh: '单一事件占比偏高', en: 'High single-event concentration' },
+
   'summary.totalValue': { zh: '总持仓价值', en: 'Total value' },
   'summary.today': { zh: '今日 (24h)', en: 'Today (24h)' },
   'summary.unrealized': { zh: '未实现盈亏', en: 'Unrealized' },

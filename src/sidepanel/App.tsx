@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AuthBar } from './components/AuthBar';
 import { EquitySummary } from './components/EquitySummary';
 import { EventGroup } from './components/EventGroup';
+import { ExposureBar } from './components/ExposureBar';
 import { SettingsBar } from './components/SettingsBar';
 import { useMonitorStore, useT } from './store';
 import type { Lang } from '@/shared/i18n';
@@ -119,7 +120,10 @@ export function App() {
 
       <section className="app__body">
         {hasAddress && config.showSummary ? (
-          <EquitySummary positions={snapshot?.positions ?? []} todayPnl={todayPnl} />
+          <>
+            <EquitySummary positions={snapshot?.positions ?? []} todayPnl={todayPnl} />
+            <ExposureBar positions={snapshot?.positions ?? []} />
+          </>
         ) : null}
 
         <AuthBar />

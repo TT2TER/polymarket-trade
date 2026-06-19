@@ -1,0 +1,74 @@
+/* #5 风险敞口总览 */
+.pq-expo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--pq-radius-card, 10px);
+  background: var(--c-surface);
+  padding: 9px 11px;
+}
+
+.pq-expo__title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--c-muted);
+  text-transform: uppercase;
+}
+
+.pq-expo__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pq-expo__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px 34px;
+  align-items: center;
+  gap: 8px;
+}
+
+.pq-expo__label {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--c-text);
+}
+
+.pq-expo__track {
+  position: relative;
+  height: 6px;
+  border-radius: var(--pq-radius-bar, 3px);
+  background: var(--c-track);
+  overflow: hidden;
+}
+
+.pq-expo__fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-radius: var(--pq-radius-bar, 3px);
+  background: var(--c-blue);
+}
+
+.pq-expo__fill--hot {
+  background: var(--c-loss);
+}
+
+.pq-expo__pct {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--c-muted);
+}
+
+.pq-expo__pct--hot {
+  color: var(--c-loss);
+  font-weight: 700;
+}
