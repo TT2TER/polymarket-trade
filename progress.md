@@ -335,3 +335,7 @@ i18n:AuthBar 文案集中在 `TEXT` 常量,便于 P6 抽取。
   - #4:**修正数据源**——data-api 的 `endDate` 是纯日期/结算目标(实测可停在过去而市场仍交易),不可用;改 `gammaApi.ts` 低频按 conditionId 批量取 `gameStartTime`(单场开赛即停盘)`||endDate`(完整 ISO),store `marketMeta` + subscribe 回调去重补拉;`PositionRow` 倒计时 chip 改用之(命名避开「封盘 N×」价格倍率,用「结算」)。
   - Codex 交叉验证(3 项已修):MED gamma HTTP 错误码不重试→改抛错触发重试;MED 缺监控代次守卫→加 `monitorGeneration` 丢弃旧会话在途结果 + 失败 5s 退避;LOW startMonitoring 未清 `priceHistory`→已清。
   - 离线 sanity:settlementCountdown 边界、samplePriceHistory 同引用/封顶/裁剪、gamma 时间规范化(空格+无冒号偏移、+05:30、纯日期)全过;typecheck+build 通过。⚠ Chrome 内肉眼确认待用户。
+- 2026-06-20:**#3 到价提醒完成**(被动通知,绝不下单)。
+  - `priceAlertConfig.ts`(每仓阈值:价≥/≤、盈亏%≥/≤、市值≥;normalize/clamp;chrome.storage.local)、`alertMonitor.ts`(latch 防抖:跨越才触发、回落重新武装、一次性 disabledOneShot;价格缺失帧保留 runtime;非有限指标跳过)、store(priceAlertConfigs + load/setPriceAlert/clearAlertCondition + handleAlertTrigger 通知;复用 notifyDesktop)、`AlertPanel.tsx`(5 输入+repeat+enable)+ PositionOps 'alert' tab + App 启动加载 + i18n。
+  - Codex 交叉验证(3 项已修):HIGH 同帧多个一次性触发并发清阈值竞态→改 `clearAlertCondition` 函数式 set 原子合并 + 持久化 get() 最新全量;MED 价格缺失帧裁剪 runtime 破坏 latch→在位持仓恒保留 runtime;LOW pnl NaN→非有限指标跳过。
+  - 离线 sanity:latch 一次性/重复/重新武装语义全过;typecheck+build 通过。⚠ Chrome 触发通知待用户实测。

@@ -3,6 +3,7 @@ import type { OpenOrder } from '@polymarket/clob-client-v2';
 import type { DataSource, Snapshot } from '@/lib/datasource/types';
 import { roundDownShares, type PlaceSellResult } from '@/lib/trading/orders';
 import { StopLossMonitor, type StopLossMonitorStatuses, type StopLossTriggerDetails } from '@/lib/stoploss/monitor';
+import { AlertMonitor, type AlertTrigger } from '@/lib/alerts/alertMonitor';
 import { WsSource } from '@/lib/datasource/wsSource';
 import { getTodayPnl } from '@/lib/api/userPnl';
 import { getMarketMeta, type MarketMeta } from '@/lib/api/gammaApi';
@@ -17,6 +18,15 @@ import {
   type StopLossConfigs,
 } from '@/shared/stopLossConfig';
 import { readTargetMultipliers, writeTargetMultipliers, type TargetMultipliers } from '@/shared/targetMultipliers';
+import {
+  hasAnyCondition,
+  normalizePriceAlertConfig,
+  readPriceAlertConfigs,
+  writePriceAlertConfigs,
+  type AlertConditionKey,
+  type PriceAlertConfigPatch,
+  type PriceAlertConfigs,
+} from '@/shared/priceAlertConfig';
 import type {
   AuthStatusResponse,
   ErrorResponse,
@@ -38,6 +48,8 @@ interface MonitorStore {
   config: AppConfig;
   stopLossConfigs: StopLossConfigs;
   stopLossStatuses: StopLossStatuses;
+  // #3 到价提醒:每仓阈值配置(被动通知,不下单)。
+  priceAlertConfigs: PriceAlertConfigs;
   targetMultipliers: TargetMultipliers;
   todayPnl: number | null;
   snapshot: Snapshot | null;
@@ -53,6 +65,9 @@ interface MonitorStore {
   setConfig: (config: AppConfig) => Promise<void>;
   loadConfig: () => Promise<void>;
   loadStopLossConfigs: () => Promise<void>;
+  loadPriceAlertConfigs: () => Promise<void>;
+  setPriceAlert: (asset: string, patch: PriceAlertConfigPatch) => Promise<void>;
+  clearAlertCondition: (asset: string, key: AlertConditionKey) => Promise<void>;
   loadTargetMultipliers: () => Promise<void>;
   setTargetMultiplier: (asset: string, n: number) => void;
   fetchMarketMeta: (conditionIds: string[]) => Promise<void>;
@@ -91,6 +106,7 @@ export type StopLossStatuses = Record<string, StopLossStatus>;
 let activeSource: DataSource | null = null;
 let activeUnsubscribe: (() => void) | null = null;
 let activeStopLossMonitor: StopLossMonitor | null = null;
+let activeAlertMonitor: AlertMonitor | null = null;
 let monitoringActive = false;
 // 目标倍数 N 的 debounce 落盘计时器(拖动停止 ~500ms 后写一次,不打爆 storage)。
 let targetMultipliersTimer: ReturnType<typeof setTimeout> | null = null;
@@ -108,6 +124,8 @@ function stopActiveSource(): void {
   activeSource = null;
   activeStopLossMonitor?.reset();
   activeStopLossMonitor = null;
+  activeAlertMonitor?.reset();
+  activeAlertMonitor = null;
 }
 
 function errorSnapshot(message: string): Snapshot {
@@ -173,7 +191,7 @@ function mergeMonitorStatuses(statuses: StopLossStatuses, monitorStatuses: StopL
   return next;
 }
 
-function notifyStopLoss(title: string, message: string): void {
+function notifyDesktop(title: string, message: string): void {
   chrome.notifications.create({
     type: 'basic',
     iconUrl:
@@ -183,10 +201,40 @@ function notifyStopLoss(title: string, message: string): void {
   });
 }
 
+// #3 到价提醒触发文案:把条件键 + 阈值格式化为「价 ≥ 75¢ / 盈亏 ≥ +20% / 市值 ≥ $300」。
+function describeAlertCondition(lang: AppConfig['lang'], key: AlertConditionKey, threshold: number): string {
+  const signed = (n: number): string => `${n > 0 ? '+' : ''}${n}`;
+  switch (key) {
+    case 'priceAbove':
+      return translate(lang, 'alert.condPriceAbove', { v: Math.round(threshold * 100) });
+    case 'priceBelow':
+      return translate(lang, 'alert.condPriceBelow', { v: Math.round(threshold * 100) });
+    case 'pnlPctAbove':
+      return translate(lang, 'alert.condPnlAbove', { v: signed(threshold) });
+    case 'pnlPctBelow':
+      return translate(lang, 'alert.condPnlBelow', { v: signed(threshold) });
+    case 'valueAbove':
+      return translate(lang, 'alert.condValueAbove', { v: Math.round(threshold) });
+  }
+}
+
+// #3 触发处理:桌面通知 + 一次性触发后清除该阈值并持久化(再无条件则关 enabled)。
+async function handleAlertTrigger(get: () => MonitorStore, trigger: AlertTrigger): Promise<void> {
+  const lang = get().config.lang;
+  const condText = describeAlertCondition(lang, trigger.conditionKey, trigger.threshold);
+  notifyDesktop(translate(lang, 'alert.firedTitle'), `${trigger.title} · ${trigger.outcome.toUpperCase()} · ${condText}`);
+
+  if (!trigger.oneShot) {
+    return;
+  }
+  await get().clearAlertCondition(trigger.asset, trigger.conditionKey);
+}
+
 const monitorStore = create<MonitorStore>((set, get) => ({
   config: DEFAULT_CONFIG,
   stopLossConfigs: {},
   stopLossStatuses: {},
+  priceAlertConfigs: {},
   targetMultipliers: {},
   todayPnl: null,
   snapshot: null,
@@ -227,6 +275,41 @@ const monitorStore = create<MonitorStore>((set, get) => ({
         isLoading: false,
       });
     }
+  },
+
+  loadPriceAlertConfigs: async () => {
+    try {
+      set({ priceAlertConfigs: await readPriceAlertConfigs() });
+    } catch {
+      // 非关键偏好,读失败用空映射(各仓无提醒)。
+      set({ priceAlertConfigs: {} });
+    }
+  },
+
+  // 设置/更新某仓的到价提醒配置并持久化。patch 合并入既有配置后规范化。
+  setPriceAlert: async (asset: string, patch: PriceAlertConfigPatch) => {
+    const current = get().priceAlertConfigs[asset];
+    const nextConfig = normalizePriceAlertConfig({ ...current, ...patch });
+    const nextConfigs = { ...get().priceAlertConfigs, [asset]: nextConfig };
+    await writePriceAlertConfigs(nextConfigs);
+    set({ priceAlertConfigs: nextConfigs });
+  },
+
+  // 一次性触发后清除该阈值(再无条件则关 enabled)。用函数式 set 原子合并 + 持久化最新整体状态,
+  // 使同一帧多个一次性触发并发清除时互不覆盖(各自 await 时都读 get() 最新全量,写入相同终态)。
+  clearAlertCondition: async (asset: string, key: AlertConditionKey) => {
+    set((state) => {
+      const current = state.priceAlertConfigs[asset];
+      if (!current) {
+        return {};
+      }
+      const projected = normalizePriceAlertConfig({ ...current, [key]: null });
+      if (!hasAnyCondition(projected)) {
+        projected.enabled = false;
+      }
+      return { priceAlertConfigs: { ...state.priceAlertConfigs, [asset]: projected } };
+    });
+    await writePriceAlertConfigs(get().priceAlertConfigs);
   },
 
   loadTargetMultipliers: async () => {
@@ -346,7 +429,7 @@ const monitorStore = create<MonitorStore>((set, get) => ({
       set((state) => ({
         stopLossStatuses: patchStopLossStatus(state.stopLossStatuses, asset, { lastResult: null, lastError: message }),
       }));
-      notifyStopLoss(t('stopLoss.failedTitle'), message);
+      notifyDesktop(t('stopLoss.failedTitle'), message);
       return;
     }
 
@@ -379,13 +462,13 @@ const monitorStore = create<MonitorStore>((set, get) => ({
       set((state) => ({
         stopLossStatuses: patchStopLossStatus(state.stopLossStatuses, asset, { lastResult: message, lastError: null }),
       }));
-      notifyStopLoss(result.dryRun ? t('stopLoss.dryRunTitle') : t('stopLoss.submittedTitle'), message);
+      notifyDesktop(result.dryRun ? t('stopLoss.dryRunTitle') : t('stopLoss.submittedTitle'), message);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       set((state) => ({
         stopLossStatuses: patchStopLossStatus(state.stopLossStatuses, asset, { lastResult: null, lastError: message }),
       }));
-      notifyStopLoss(t('stopLoss.failedTitle'), message);
+      notifyDesktop(t('stopLoss.failedTitle'), message);
     }
   },
 
@@ -411,11 +494,16 @@ const monitorStore = create<MonitorStore>((set, get) => ({
     activeStopLossMonitor = new StopLossMonitor((asset, details) => {
       void get().executeStopLoss(asset, details);
     });
+    activeAlertMonitor = new AlertMonitor((trigger) => {
+      void handleAlertTrigger(get, trigger);
+    });
 
     activeSource = source;
     activeUnsubscribe = source.subscribe((snapshot) => {
       // 每个行情 tick 只 set 一次(合并快照与止损状态),避免一跳触发两次 React 渲染。
       const stopLossMonitorStatuses = activeStopLossMonitor?.processSnapshot(snapshot, get().stopLossConfigs) ?? {};
+      // #3 到价提醒:逐 tick 评估阈值;触发只回调通知,不改 store(避免行情帧多余渲染)。
+      activeAlertMonitor?.processSnapshot(snapshot, get().priceAlertConfigs);
       set((state) => ({
         snapshot,
         isLoading: snapshot.lastUpdated === 0 && snapshot.error === null,

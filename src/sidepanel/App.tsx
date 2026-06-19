@@ -21,6 +21,7 @@ export function App() {
   const isLoading = useMonitorStore((state) => state.isLoading);
   const loadConfig = useMonitorStore((state) => state.loadConfig);
   const loadStopLossConfigs = useMonitorStore((state) => state.loadStopLossConfigs);
+  const loadPriceAlertConfigs = useMonitorStore((state) => state.loadPriceAlertConfigs);
   const loadTargetMultipliers = useMonitorStore((state) => state.loadTargetMultipliers);
   const startMonitoring = useMonitorStore((state) => state.startMonitoring);
   const stopMonitoring = useMonitorStore((state) => state.stopMonitoring);
@@ -34,7 +35,7 @@ export function App() {
   useEffect(() => {
     let disposed = false;
 
-    void Promise.all([loadConfig(), loadStopLossConfigs(), loadTargetMultipliers()]).then(() => {
+    void Promise.all([loadConfig(), loadStopLossConfigs(), loadPriceAlertConfigs(), loadTargetMultipliers()]).then(() => {
       if (!disposed) {
         startMonitoring();
       }
@@ -44,7 +45,7 @@ export function App() {
       disposed = true;
       stopMonitoring();
     };
-  }, [loadConfig, loadStopLossConfigs, loadTargetMultipliers, startMonitoring, stopMonitoring]);
+  }, [loadConfig, loadStopLossConfigs, loadPriceAlertConfigs, loadTargetMultipliers, startMonitoring, stopMonitoring]);
 
   // 主题:system 跟随操作系统(监听 prefers-color-scheme 变化);dark/light 固定。
   useEffect(() => {

@@ -1,0 +1,88 @@
+/* #3 到价提醒面板 */
+.pq-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px 0;
+}
+
+.pq-alert__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pq-alert__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.pq-alert__field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pq-alert__label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.3px;
+  color: var(--c-muted);
+}
+
+.pq-alert__input {
+  width: 100%;
+  border: 1px solid var(--c-border);
+  border-radius: var(--pq-radius-input);
+  background: var(--c-surface);
+  color: var(--c-text);
+  padding: 6px 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pq-alert__input:focus {
+  outline: none;
+  border-color: var(--c-blue);
+}
+
+.pq-alert__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pq-alert__save {
+  border: 1px solid var(--t-blue-bd);
+  border-radius: var(--pq-radius-input);
+  background: var(--t-blue-bg);
+  color: var(--c-blue);
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pq-alert__save:hover:not(:disabled) {
+  border-color: var(--c-blue);
+}
+
+.pq-alert__save:disabled {
+  opacity: 0.5;
+}
+
+.pq-alert__hint {
+  margin: 0;
+  font-size: 9.5px;
+  line-height: 1.4;
+  color: var(--c-muted2);
+}
+
+.pq-alert__error {
+  margin: 0;
+  font-size: 10px;
+  color: var(--c-loss);
+}
