@@ -36,7 +36,7 @@ export function normalizeStopLossConfig(value: Partial<StopLossConfig> | undefin
   return {
     armed: typeof value?.armed === 'boolean' ? value.armed : DEFAULT_STOP_LOSS_CONFIG.armed,
     windowMs: clampNullableNumber(value?.windowMs, 1_000, 300_000),
-    threshold: clampNullableNumber(value?.threshold, 0.01, 1.5),
+    threshold: clampNullableNumber(value?.threshold, 0.01, 1),
     sellFraction: clampNullableNumber(value?.sellFraction, 0.05, 1),
     slippage: clampNullableNumber(value?.slippage, 0, 0.5),
   };

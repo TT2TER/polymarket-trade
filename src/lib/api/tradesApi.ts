@@ -52,6 +52,9 @@ export async function getTrades(address: string, limit = 500): Promise<Trade[]> 
   const url = new URL(TRADES_URL);
   url.searchParams.set('user', address);
   url.searchParams.set('limit', String(limit));
+  // ⚠ data-api 默认只返回 taker(立即吃单)成交,会漏掉用户挂限价单被吃掉的 maker 成交;
+  // takerOnly=false 取完整成交(maker+taker),流水才全,平均成本法也更准。
+  url.searchParams.set('takerOnly', 'false');
 
   const response = await fetch(url.toString());
   if (response.status === 404) {
