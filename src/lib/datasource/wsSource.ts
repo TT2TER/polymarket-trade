@@ -166,6 +166,8 @@ export class WsSource implements DataSource {
   private booksEpoch = 0;
   private connectionEpoch = 0;
   private reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
+  // 合帧:同一动画帧内多条 WS 消息只通知订阅方一次,用最新快照,避免突发行情下每条消息各触发一次同步全树渲染。
+  private emitRafHandle: number | null = null;
   private lastAssetKey = '';
   private assetIds = new Set<string>();
   private subscribedAssetIds = new Set<string>();
@@ -211,6 +213,7 @@ export class WsSource implements DataSource {
     this.clearHeartbeat();
     this.clearReconnect();
     this.clearLastTradeRefresh();
+    this.cancelScheduledEmit();
     this.closeSocket();
   }
 
@@ -661,12 +664,28 @@ export class WsSource implements DataSource {
   }
 
   private emit(): void {
-    if (!this.running) {
+    if (!this.running || this.emitRafHandle !== null) {
       return;
     }
 
-    for (const subscriber of this.subscribers) {
-      subscriber(this.snapshot);
+    // 合帧:把这一帧内的多次状态变更折叠为一次订阅通知,在下一帧用最新快照刷新。
+    // 对眼睛仍是「瞬时」(≤16ms),但把渲染次数钉死在帧率,消除急涨急跌时的渲染抖动。
+    this.emitRafHandle = requestAnimationFrame(() => {
+      this.emitRafHandle = null;
+      if (!this.running) {
+        return;
+      }
+      const snapshot = this.snapshot;
+      for (const subscriber of this.subscribers) {
+        subscriber(snapshot);
+      }
+    });
+  }
+
+  private cancelScheduledEmit(): void {
+    if (this.emitRafHandle !== null) {
+      cancelAnimationFrame(this.emitRafHandle);
+      this.emitRafHandle = null;
     }
   }
 }

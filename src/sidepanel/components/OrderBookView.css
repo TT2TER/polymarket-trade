@@ -64,12 +64,12 @@
 
 .pq-lob__depth--bid {
   right: 0;
-  background: var(--t-up-bg);
+  background: var(--t-gain-bg);
 }
 
 .pq-lob__depth--ask {
   left: 0;
-  background: var(--t-down-bg);
+  background: var(--t-loss-bg);
 }
 
 .pq-lob__tag {
@@ -80,11 +80,11 @@
 }
 
 .pq-lob__tag--bid {
-  color: var(--c-up);
+  color: var(--c-gain);
 }
 
 .pq-lob__tag--ask {
-  color: var(--c-down);
+  color: var(--c-loss);
 }
 
 .pq-lob__price {
@@ -94,11 +94,11 @@
 }
 
 .pq-lob__price--bid {
-  color: var(--c-up);
+  color: var(--c-gain);
 }
 
 .pq-lob__price--ask {
-  color: var(--c-down);
+  color: var(--c-loss);
 }
 
 .pq-lob__size {
@@ -146,15 +146,79 @@
 }
 
 .pq-lob__row--bid.pq-lob__row--best {
-  border-color: var(--t-up-bd);
+  border-color: var(--t-gain-bd);
 }
 
 .pq-lob__row--ask.pq-lob__row--best {
-  border-color: var(--t-down-bd);
+  border-color: var(--t-loss-bd);
 }
 
 .pq-lob__none {
   color: var(--c-muted2);
   font-size: 10px;
   padding: 4px 8px;
+}
+
+/* 单档跳动高亮:该档价格或挂单量变化时,买档闪买色、卖档闪卖色(盘口为固定买卖语义,不随涨跌配色翻转)。
+   纯 CSS 动画,由组件在 price/size 变化时切 class 触发,不引入额外渲染、不影响数据延迟。 */
+@keyframes pq-lob-flash-bid {
+  from {
+    background-color: var(--t-gain-bd);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@keyframes pq-lob-flash-ask {
+  from {
+    background-color: var(--t-loss-bd);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.pq-lob__row--flash-bid {
+  animation: pq-lob-flash-bid 0.5s ease-out;
+}
+
+.pq-lob__row--flash-ask {
+  animation: pq-lob-flash-ask 0.5s ease-out;
+}
+
+/* 折叠态(买1/卖1 两格)同款闪烁:常驻底色是 --c-cell,故收尾落回 --c-cell 而非透明。 */
+@keyframes pq-lob-cellflash-bid {
+  from {
+    background-color: var(--t-gain-bd);
+  }
+  to {
+    background-color: var(--c-cell);
+  }
+}
+
+@keyframes pq-lob-cellflash-ask {
+  from {
+    background-color: var(--t-loss-bd);
+  }
+  to {
+    background-color: var(--c-cell);
+  }
+}
+
+.pq-lob__cell--flash-bid {
+  animation: pq-lob-cellflash-bid 0.5s ease-out;
+}
+
+.pq-lob__cell--flash-ask {
+  animation: pq-lob-cellflash-ask 0.5s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pq-lob__row--flash-bid,
+  .pq-lob__row--flash-ask,
+  .pq-lob__cell--flash-bid,
+  .pq-lob__cell--flash-ask {
+    animation: none;
+  }
 }

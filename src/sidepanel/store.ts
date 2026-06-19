@@ -363,12 +363,14 @@ const monitorStore = create<MonitorStore>((set, get) => ({
 
     activeSource = source;
     activeUnsubscribe = source.subscribe((snapshot) => {
-      set({
+      // 每个行情 tick 只 set 一次(合并快照与止损状态),避免一跳触发两次 React 渲染。
+      const stopLossMonitorStatuses = activeStopLossMonitor?.processSnapshot(snapshot, get().stopLossConfigs) ?? {};
+      set((state) => ({
         snapshot,
         isLoading: snapshot.lastUpdated === 0 && snapshot.error === null,
-      });
-      const stopLossMonitorStatuses = activeStopLossMonitor?.processSnapshot(snapshot, get().stopLossConfigs) ?? {};
-      set({ stopLossStatuses: mergeMonitorStatuses(get().stopLossStatuses, stopLossMonitorStatuses) });
+        // mergeMonitorStatuses 在无止损更新时原样返回同一引用,不会无谓刷新订阅方。
+        stopLossStatuses: mergeMonitorStatuses(state.stopLossStatuses, stopLossMonitorStatuses),
+      }));
     });
     set({ isLoading: true });
     source.start();

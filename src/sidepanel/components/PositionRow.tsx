@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { progressBar } from '@/lib/calc/progressBar';
 import type { PositionView } from '@/lib/types';
 import { useMonitorStore, useT } from '@/sidepanel/store';
@@ -61,11 +62,29 @@ export function PositionRow({ view, defaultMultiplier, isOpen, onToggle }: Posit
   const bar = progressBar(view.position.avgPrice, view.currentPrice, targetMultiplier);
   const armed = stopLossConfig?.armed ?? false;
 
+  // 现价跳动闪烁:用 ref 直接操作 DOM class,避免 setState 引入额外渲染。
+  // 「移类 → 强制回流 → 加类」以在连续 tick(快于动画时长)时可靠地重启动画。
+  const rowRef = useRef<HTMLButtonElement>(null);
+  const prevPriceRef = useRef(view.currentPrice);
+  useEffect(() => {
+    const el = rowRef.current;
+    const prev = prevPriceRef.current;
+    prevPriceRef.current = view.currentPrice;
+    if (!el || prev === view.currentPrice || !Number.isFinite(prev) || !Number.isFinite(view.currentPrice)) {
+      return;
+    }
+    const cls = view.currentPrice > prev ? 'pq-row--flash-up' : 'pq-row--flash-down';
+    el.classList.remove('pq-row--flash-up', 'pq-row--flash-down');
+    void el.offsetWidth; // 强制回流,重启 CSS 动画
+    el.classList.add(cls);
+  }, [view.currentPrice]);
+
   return (
     <button
       aria-expanded={isOpen}
       className={`pq-row ${isOpen ? 'pq-row--open' : ''}`}
       onClick={onToggle}
+      ref={rowRef}
       type="button"
     >
       <div className="pq-row__l1">

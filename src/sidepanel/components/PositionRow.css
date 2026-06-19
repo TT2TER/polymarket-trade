@@ -20,6 +20,41 @@
   background: var(--c-rowhover);
 }
 
+/* 现价跳动时短暂高亮:涨用 gain 底色、跌用 loss 底色(随深浅主题 + cn/us 配色自动翻转)。
+   纯 CSS 动画(compositor/paint),由组件在价格变化时切换 class 触发,不引入额外渲染、不影响数据延迟。 */
+@keyframes pq-row-flash-up {
+  from {
+    background-color: var(--t-gain-bg);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@keyframes pq-row-flash-down {
+  from {
+    background-color: var(--t-loss-bg);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.pq-row--flash-up {
+  animation: pq-row-flash-up 0.6s ease-out;
+}
+
+.pq-row--flash-down {
+  animation: pq-row-flash-down 0.6s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pq-row--flash-up,
+  .pq-row--flash-down {
+    animation: none;
+  }
+}
+
 /* 行 1:标签 + 标题 + 盈亏% + chevron */
 .pq-row__l1 {
   display: flex;
