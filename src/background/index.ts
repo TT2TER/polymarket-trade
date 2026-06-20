@@ -454,7 +454,17 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResp
         try {
           const client = await getTradingClient();
           // 真·全账户撤单(破坏性):一次调用撤掉所有 open orders,含无持仓的纯买单。
-          sendResponse({ ok: true, data: await client.cancelAll() });
+          const result = await client.cancelAll();
+          // throwOnError=false 时失败会以 { error } 形式返回而非抛错;别把失败当成功回给 UI(H1)。
+          const failure =
+            result && typeof result === 'object' && typeof (result as { error?: unknown }).error === 'string'
+              ? (result as { error: string }).error
+              : null;
+          if (failure) {
+            sendResponse({ error: failure });
+            return;
+          }
+          sendResponse({ ok: true, data: result });
         } catch (error) {
           sendResponse({ error: errorMessage(error) });
         }

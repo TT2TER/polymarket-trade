@@ -179,6 +179,7 @@ export class WsSource implements DataSource {
     positions: [],
     books: {},
     lastUpdated: 0,
+    positionsUpdatedAt: 0,
     error: null,
   };
 
@@ -252,11 +253,14 @@ export class WsSource implements DataSource {
       this.lastAssetKey = nextAssetKey;
       this.assetIds = new Set(nextAssetIds);
       this.errors.positions = null;
+      const now = Date.now();
       this.snapshot = {
         ...this.snapshot,
         positions,
         books: this.pruneBooks(nextAssetIds),
-        lastUpdated: Date.now(),
+        lastUpdated: now,
+        // 仅此处(持仓刷新)推进 positionsUpdatedAt;WS book/price 更新只 spread 继承,不会动它。
+        positionsUpdatedAt: now,
         error: this.combinedError(),
       };
       this.emit();

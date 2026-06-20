@@ -77,8 +77,9 @@ export function AllOpenOrders({ positions }: AllOpenOrdersProps) {
   const cancelOrderGlobal = useMonitorStore((state) => state.cancelOrderGlobal);
   const cancelAllGlobal = useMonitorStore((state) => state.cancelAllGlobal);
   const authStatus = useMonitorStore((state) => state.authStatus);
-  // 跟随 app 快照刷新一起重拉:用户点主「↻ 刷新」或自动刷新时,挂单也同步更新(无独立轮询)。
-  const lastUpdated = useMonitorStore((state) => state.snapshot?.lastUpdated ?? 0);
+  // 跟随「持仓刷新」重拉(无独立轮询)。必须用 positionsUpdatedAt 而非 lastUpdated——
+  // 后者会被每个 WS book/price tick 推进,挂在它上会把认证 REST 刷成洪水。
+  const positionsUpdatedAt = useMonitorStore((state) => state.snapshot?.positionsUpdatedAt ?? 0);
   // gamma 市场元数据(按 conditionId),用于无持仓的纯买单也能显示市场名。
   const marketMeta = useMonitorStore((state) => state.marketMeta);
   const fetchMarketMeta = useMonitorStore((state) => state.fetchMarketMeta);
@@ -100,7 +101,7 @@ export function AllOpenOrders({ positions }: AllOpenOrdersProps) {
     if (authStatus.authenticated) {
       void getAllOpenOrders();
     }
-  }, [authStatus.authenticated, getAllOpenOrders, lastUpdated]);
+  }, [authStatus.authenticated, getAllOpenOrders, positionsUpdatedAt]);
 
   // 对挂单所在市场(conditionId)拉一次 gamma 元数据,补全持仓里查不到标题的纯买单。
   // fetchMarketMeta 内部按 conditionId 去重,重复 id 不会重复请求。
@@ -111,9 +112,9 @@ export function AllOpenOrders({ positions }: AllOpenOrdersProps) {
     }
   }, [allOpenOrders, fetchMarketMeta]);
 
-  // 无挂单(且无错误)时整块隐藏。新挂的单会在持仓轮询(lastUpdated)触发的重拉后自动出现,
-  // 故无需为空态常驻面板/刷新按钮。
-  if (allOpenOrders.length === 0 && !allOrdersError) {
+  // 未启用交易时整块隐藏(避免锁定后残留旧账户挂单);无挂单(且无错误)时也隐藏。
+  // 新挂的单会在持仓刷新(positionsUpdatedAt)触发的重拉后自动出现,故无需为空态常驻面板。
+  if (!authStatus.authenticated || (allOpenOrders.length === 0 && !allOrdersError)) {
     return null;
   }
 
@@ -139,8 +140,9 @@ export function AllOpenOrders({ positions }: AllOpenOrdersProps) {
     setBusy('all');
     try {
       await cancelAllGlobal();
-      setConfirming(false);
     } finally {
+      // 成功或失败都退出确认态(失败信息经 allOrdersError 展示),避免确认条卡死。
+      setConfirming(false);
       setBusy(null);
     }
   }

@@ -4,6 +4,9 @@ export interface Snapshot {
   positions: Position[];
   books: Record<string, OrderBook>;
   lastUpdated: number;
+  // 仅在持仓 REST 刷新时更新(book/price 的 WS tick 不会动它)。
+  // 用于「跟随持仓刷新」而非「跟随每个行情 tick」的订阅,如挂单重拉。
+  positionsUpdatedAt?: number;
   error: string | null;
 }
 
