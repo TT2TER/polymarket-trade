@@ -108,8 +108,8 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
           {rows.map((row, index) => (
             <div className="pq-hist__row" key={`${row.transactionHash}-${row.asset}-${row.timestamp}-${index}`}>
               <div className="pq-hist__l1">
-                <span className={`pq-hist__side pq-hist__side--${row.side === 'BUY' ? 'buy' : 'sell'}`}>{row.side}</span>
-                <span className="pq-hist__market">{row.title} · {row.outcome}</span>
+                <span className={`pq-hist__side pq-hist__side--${row.side.toLowerCase()}`}>{row.side}</span>
+                <span className="pq-hist__market">{row.title}{row.outcome ? ` · ${row.outcome}` : ''}</span>
               </div>
               <div className="pq-hist__l2">
                 <span className="pq-hist__when">{shortTime(row.timestamp, lang)}</span>

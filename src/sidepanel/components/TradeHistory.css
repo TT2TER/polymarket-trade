@@ -158,6 +158,12 @@
   border: 1px solid var(--t-loss-bd);
 }
 
+.pq-hist__side--redeem {
+  background: var(--t-up-bg);
+  color: var(--c-up);
+  border: 1px solid var(--t-up-bd);
+}
+
 .pq-hist__market {
   overflow: hidden;
   font-size: 11.5px;

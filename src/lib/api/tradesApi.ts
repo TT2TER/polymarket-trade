@@ -10,6 +10,8 @@ export interface Trade {
   side: 'BUY' | 'SELL';
   size: number;
   price: number;
+  // 本笔实际 USDC 金额(优先于 size×price:更贴近链上真实结算额,成本/已实现盈亏用它更准)。
+  usdcSize: number;
   outcome: string;
   title: string;
   slug: string;
@@ -19,6 +21,21 @@ export interface Trade {
   // 本笔用户是否为 taker(吃单)。data-api 默认只返回 taker,故「同时出现在 takerOnly=true 结果」者为 taker。
   // 仅 taker 的 BUY 收手续费(SELL 豁免、maker 免),用于 #2 已实现盈亏的成本基校正。
   isTaker: boolean;
+}
+
+// 赎回事件(持有到市场结算,按 $1/$0 兑付)。/trades 不含,需从 /activity 取。
+// 已实现盈亏必须纳入它,否则"买了没卖、结算输掉"的仓位亏损会被漏算(平均成本法只认卖出)。
+export interface Redeem {
+  conditionId: string;
+  usdcSize: number; // 赎回所得(赢=份额×$1,输≈$0)
+  title: string;
+  timestamp: number;
+  transactionHash: string;
+}
+
+export interface Activity {
+  trades: Trade[];
+  redeems: Redeem[];
 }
 
 function num(value: unknown): number {
@@ -41,6 +58,8 @@ function normalizeTrade(raw: Record<string, unknown>): Trade | null {
     side: raw.side,
     size,
     price: num(raw.price),
+    // /activity 提供 usdcSize(真实金额);/trades 无此字段时回退 size×price。
+    usdcSize: Number.isFinite(num(raw.usdcSize)) && num(raw.usdcSize) > 0 ? num(raw.usdcSize) : size * num(raw.price),
     outcome: typeof raw.outcome === 'string' ? raw.outcome : '',
     title: typeof raw.title === 'string' ? raw.title : '',
     slug: typeof raw.slug === 'string' ? raw.slug : '',
@@ -78,25 +97,76 @@ async function fetchTrades(address: string, limit: number, takerOnly: boolean): 
     .filter((trade): trade is Trade => trade !== null);
 }
 
+const ACTIVITY_URL = 'https://data-api.polymarket.com/activity';
+
+function normalizeRedeem(raw: Record<string, unknown>): Redeem | null {
+  const conditionId = typeof raw.conditionId === 'string' ? raw.conditionId : '';
+  if (!conditionId) {
+    return null;
+  }
+  return {
+    conditionId,
+    usdcSize: num(raw.usdcSize),
+    title: typeof raw.title === 'string' ? raw.title : '',
+    timestamp: num(raw.timestamp),
+    transactionHash: typeof raw.transactionHash === 'string' ? raw.transactionHash : '',
+  };
+}
+
+// /activity 含全部事件类型(TRADE / REDEEM / SPLIT / MERGE …);这里取 TRADE 与 REDEEM。
+// TRADE 与 /trades?takerOnly=false 同集合(maker+taker 全量)。
+async function fetchActivity(address: string, limit: number): Promise<{ trades: Trade[]; redeems: Redeem[] }> {
+  const url = new URL(ACTIVITY_URL);
+  url.searchParams.set('user', address);
+  url.searchParams.set('limit', String(limit));
+
+  const response = await fetch(url.toString());
+  if (response.status === 404) {
+    return { trades: [], redeems: [] };
+  }
+  if (!response.ok) {
+    throw new Error(`Activity request failed: ${response.status} ${response.statusText}`);
+  }
+  const data: unknown = await response.json();
+  if (!Array.isArray(data)) {
+    throw new Error('Activity response was not an array');
+  }
+  const trades: Trade[] = [];
+  const redeems: Redeem[] = [];
+  for (const item of data as Record<string, unknown>[]) {
+    if (item.type === 'TRADE') {
+      const trade = normalizeTrade(item);
+      if (trade) {
+        trades.push(trade);
+      }
+    } else if (item.type === 'REDEEM') {
+      const redeem = normalizeRedeem(item);
+      if (redeem) {
+        redeems.push(redeem);
+      }
+    }
+  }
+  return { trades, redeems };
+}
+
 /**
- * 拉取某地址的完整成交流水(maker+taker)并标记每笔 isTaker(默认最近 500 笔)。
- * 两次请求:takerOnly=false 取完整列表;takerOnly=true 取 taker 子集用于标记身份。
- * taker 子集请求失败不致命(整体降级为全 maker:买入费按 0,只是不校正,不会算错方向)。
+ * 拉取某地址的完整活动(成交 + 赎回),并标记每笔成交 isTaker(默认最近 500 笔)。
+ * /activity 取全量成交+赎回;/trades?takerOnly=true 取 taker 子集用于标记身份(失败则全按 maker,买入费按 0)。
  */
-export async function getTrades(address: string, limit = 500): Promise<Trade[]> {
-  const [all, takerSettled] = await Promise.allSettled([
-    fetchTrades(address, limit, false),
+export async function getActivity(address: string, limit = 500): Promise<Activity> {
+  const [activitySettled, takerSettled] = await Promise.allSettled([
+    fetchActivity(address, limit),
     fetchTrades(address, limit, true),
   ]);
-  if (all.status === 'rejected') {
-    throw all.reason instanceof Error ? all.reason : new Error(String(all.reason));
+  if (activitySettled.status === 'rejected') {
+    throw activitySettled.reason instanceof Error ? activitySettled.reason : new Error(String(activitySettled.reason));
   }
-  const trades = all.value;
+  const { trades, redeems } = activitySettled.value;
   if (takerSettled.status === 'fulfilled') {
     const takerKeys = new Set(takerSettled.value.map(tradeKey));
     for (const trade of trades) {
       trade.isTaker = takerKeys.has(tradeKey(trade));
     }
   }
-  return trades;
+  return { trades, redeems };
 }
