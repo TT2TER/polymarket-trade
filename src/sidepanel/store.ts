@@ -18,6 +18,7 @@ import {
   normalizeStopLossConfig,
   readStopLossConfigs,
   readStopLossDefaults,
+  resolveStopLossConfig,
   writeStopLossConfigs,
   writeStopLossDefaults,
   type StopLossConfigPatch,
@@ -64,6 +65,8 @@ interface MonitorStore {
   // 全局止损默认值:per-position 未覆盖的字段回落到这里(由 resolveStopLossConfig 合并)。
   stopLossDefaults: StopLossDefaults;
   stopLossStatuses: StopLossStatuses;
+  // Phase 2b 半自动:待人工确认的止损触发(semiAutoMode 开启的仓触发时进此队列,而非直接下单)。
+  pendingStopLoss: Record<string, PendingStopLoss>;
   // #3 到价提醒:每仓阈值配置(被动通知,不下单)。
   priceAlertConfigs: PriceAlertConfigs;
   // #6 条件单/OCO:每仓离场策略配置 + 触发状态。
@@ -106,6 +109,10 @@ interface MonitorStore {
   disarmStopLoss: (asset: string) => Promise<void>;
   setStopLossParams: (asset: string, params: StopLossConfigPatch) => Promise<void>;
   executeStopLoss: (asset: string, details: StopLossTriggerDetails) => Promise<void>;
+  // Phase 2b 半自动确认流:触发→入队(弹卡片+通知+倒计时);确认/超时→执行;取消→丢弃。
+  requestStopLossConfirm: (asset: string, details: StopLossTriggerDetails) => void;
+  confirmStopLoss: (asset: string) => void;
+  cancelStopLoss: (asset: string) => void;
   startMonitoring: () => void;
   stopMonitoring: () => void;
   refresh: () => void;
@@ -143,6 +150,14 @@ export interface StopLossStatus {
 
 export type StopLossStatuses = Record<string, StopLossStatus>;
 
+export interface PendingStopLoss {
+  asset: string;
+  title: string;
+  details: StopLossTriggerDetails;
+  qty: number;
+  deadline: number;
+}
+
 export interface ConditionalStatus {
   lastTriggeredAt: number;
   lastResult: string | null;
@@ -168,6 +183,17 @@ let metaRetryAfter = 0;
 // #6 条件单提交失败后重试退避(避免拒单时每帧重触发);模拟成功后的重测间隔。
 const CONDITIONAL_RETRY_MS = 15_000;
 const CONDITIONAL_DRYRUN_RETEST_MS = 30_000;
+// Phase 2b 半自动确认倒计时;超时按 fail-safe 自动执行(不取消)。
+const SEMI_AUTO_TTL_MS = 10_000;
+const semiAutoTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function clearSemiAutoTimer(asset: string): void {
+  const timer = semiAutoTimers.get(asset);
+  if (timer) {
+    clearTimeout(timer);
+    semiAutoTimers.delete(asset);
+  }
+}
 
 function stopActiveSource(): void {
   activeUnsubscribe?.();
@@ -299,6 +325,7 @@ const monitorStore = create<MonitorStore>((set, get) => ({
   stopLossConfigs: {},
   stopLossDefaults: DEFAULT_STOP_LOSS_DEFAULTS,
   stopLossStatuses: {},
+  pendingStopLoss: {},
   priceAlertConfigs: {},
   conditionalConfigs: {},
   conditionalStatuses: {},
@@ -614,10 +641,16 @@ const monitorStore = create<MonitorStore>((set, get) => ({
     const nextConfigs = { ...get().stopLossConfigs, [asset]: nextConfig };
     await writeStopLossConfigs(nextConfigs);
     activeStopLossMonitor?.removeAsset(asset);
-    set((state) => ({
-      stopLossConfigs: nextConfigs,
-      stopLossStatuses: patchStopLossStatus(state.stopLossStatuses, asset, { cooldownUntil: 0 }),
-    }));
+    clearSemiAutoTimer(asset);
+    set((state) => {
+      const nextPending = { ...state.pendingStopLoss };
+      delete nextPending[asset];
+      return {
+        stopLossConfigs: nextConfigs,
+        stopLossStatuses: patchStopLossStatus(state.stopLossStatuses, asset, { cooldownUntil: 0 }),
+        pendingStopLoss: nextPending,
+      };
+    });
   },
 
   setStopLossParams: async (asset: string, params: StopLossConfigPatch) => {
@@ -692,6 +725,49 @@ const monitorStore = create<MonitorStore>((set, get) => ({
     }
   },
 
+  requestStopLossConfirm: (asset: string, details: StopLossTriggerDetails) => {
+    const t = (key: I18nKey, params?: Record<string, string | number>) => translate(get().config.lang, key, params);
+    const position = get().snapshot?.positions.find((item) => item.asset === asset);
+    const qty = roundDownShares(details.sellFraction * details.sizeNow);
+    // 量无效或持仓已不在:退回直接执行(executeStopLoss 内部会再校验并报错)。
+    if (!position || !Number.isFinite(qty) || qty <= 0) {
+      void get().executeStopLoss(asset, details);
+      return;
+    }
+
+    const pending: PendingStopLoss = { asset, title: position.title, details, qty, deadline: Date.now() + SEMI_AUTO_TTL_MS };
+    set((state) => ({ pendingStopLoss: { ...state.pendingStopLoss, [asset]: pending } }));
+    notifyDesktop(
+      t('semiAuto.notifyTitle'),
+      t('semiAuto.notifyBody', { title: position.title, qty: qty.toLocaleString(undefined, { maximumFractionDigits: 2 }) }),
+    );
+    clearSemiAutoTimer(asset);
+    // fail-safe:超时自动执行(不取消),避免人不在时彻底失去保护。
+    semiAutoTimers.set(asset, setTimeout(() => get().confirmStopLoss(asset), SEMI_AUTO_TTL_MS));
+  },
+
+  confirmStopLoss: (asset: string) => {
+    clearSemiAutoTimer(asset);
+    const pending = get().pendingStopLoss[asset];
+    set((state) => {
+      const next = { ...state.pendingStopLoss };
+      delete next[asset];
+      return { pendingStopLoss: next };
+    });
+    if (pending) {
+      void get().executeStopLoss(asset, pending.details);
+    }
+  },
+
+  cancelStopLoss: (asset: string) => {
+    clearSemiAutoTimer(asset);
+    set((state) => {
+      const next = { ...state.pendingStopLoss };
+      delete next[asset];
+      return { pendingStopLoss: next };
+    });
+  },
+
   startMonitoring: () => {
     monitoringActive = true;
     stopActiveSource();
@@ -699,7 +775,10 @@ const monitorStore = create<MonitorStore>((set, get) => ({
     monitorGeneration += 1;
     requestedConditionIds.clear();
     metaRetryAfter = 0;
-    set({ marketMeta: {}, priceHistory: {} });
+    // 半自动:重启监控时清空待确认队列与定时器(旧会话的悬挂确认不应延续)。
+    semiAutoTimers.forEach((timer) => clearTimeout(timer));
+    semiAutoTimers.clear();
+    set({ marketMeta: {}, priceHistory: {}, pendingStopLoss: {} });
 
     const config = get().config;
     if (!config.address) {
@@ -712,7 +791,13 @@ const monitorStore = create<MonitorStore>((set, get) => ({
       positionsIntervalMs: config.positionsIntervalMs,
     });
     activeStopLossMonitor = new StopLossMonitor((asset, details) => {
-      void get().executeStopLoss(asset, details);
+      // 半自动:开启的仓触发时入队等人工确认;否则直接执行(全自动)。
+      const resolved = resolveStopLossConfig(get().stopLossConfigs[asset], get().stopLossDefaults);
+      if (resolved.semiAutoMode) {
+        get().requestStopLossConfirm(asset, details);
+      } else {
+        void get().executeStopLoss(asset, details);
+      }
     });
     activeAlertMonitor = new AlertMonitor((trigger) => {
       void handleAlertTrigger(get, trigger);

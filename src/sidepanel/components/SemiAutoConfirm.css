@@ -1,0 +1,50 @@
+.pq-semiauto {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+
+.pq-semiauto__card {
+  border: 1px solid var(--c-down);
+  border-radius: 10px;
+  background: var(--c-surface, #fff);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pq-semiauto__head {
+  font-weight: 700;
+  color: var(--c-down);
+}
+
+.pq-semiauto__body {
+  font-size: 12px;
+  color: var(--c-text, #222);
+}
+
+.pq-semiauto__count {
+  font-size: 12px;
+  color: var(--c-muted);
+}
+
+.pq-semiauto__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pq-semiauto__actions .pq-btn {
+  flex: 1;
+}
+
+.pq-btn--danger {
+  background: var(--c-down);
+  color: #fff;
+  border-color: var(--c-down);
+}

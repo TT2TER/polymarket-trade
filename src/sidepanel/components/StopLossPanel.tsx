@@ -25,7 +25,8 @@ type NullablePatchKey =
   | 'breakevenFloor'
   | 'lowPriceFloor'
   | 'sellFraction'
-  | 'slippage';
+  | 'slippage'
+  | 'semiAutoMode';
 
 interface StopLossDraft {
   anchor: StopLossAnchor | null;
@@ -38,6 +39,7 @@ interface StopLossDraft {
   lowPriceFloor: number | null;
   sellFraction: number | null;
   slippage: number | null;
+  semiAutoMode: boolean | null;
 }
 
 const MODE_LABEL_KEYS: Record<StopLossAnchor, 'stopLoss.mode.activatedTrailing' | 'stopLoss.mode.cost' | 'stopLoss.mode.peak'> = {
@@ -80,6 +82,7 @@ function emptyDraft(): StopLossDraft {
     lowPriceFloor: null,
     sellFraction: null,
     slippage: null,
+    semiAutoMode: null,
   };
 }
 
@@ -109,6 +112,7 @@ export function StopLossPanel({ position, bestBid }: StopLossPanelProps) {
       lowPriceFloor: config?.lowPriceFloor ?? null,
       sellFraction: config?.sellFraction ?? null,
       slippage: config?.slippage ?? null,
+      semiAutoMode: config?.semiAutoMode ?? null,
     });
     setError(null);
   }, [
@@ -122,6 +126,7 @@ export function StopLossPanel({ position, bestBid }: StopLossPanelProps) {
     config?.refK,
     config?.sellFraction,
     config?.slippage,
+    config?.semiAutoMode,
     config?.threshold,
     config?.windowMs,
     position.asset,
@@ -178,6 +183,7 @@ export function StopLossPanel({ position, bestBid }: StopLossPanelProps) {
       lowPriceFloor: draft.lowPriceFloor,
       sellFraction: draft.sellFraction,
       slippage: draft.slippage,
+      semiAutoMode: draft.semiAutoMode,
       threshold: null,
       windowMs: null,
     };
@@ -426,6 +432,15 @@ export function StopLossPanel({ position, bestBid }: StopLossPanelProps) {
             resetLabel={t('stopLoss.advanced.resetToGlobal')}
             step={0.5}
             value={draft.slippage === null ? null : Number((draft.slippage * 100).toFixed(2))}
+          />
+          <AdvancedBoolean
+            defaultValue={defaults.semiAutoMode}
+            disabled={isSaving}
+            label={t('stopLoss.label.semiAutoMode')}
+            onChange={(value) => setDraftField('semiAutoMode', value)}
+            onReset={() => resetField('semiAutoMode')}
+            resetLabel={t('stopLoss.advanced.resetToGlobal')}
+            value={draft.semiAutoMode}
           />
         </div>
       ) : null}

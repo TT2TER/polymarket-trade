@@ -4,6 +4,7 @@ import { BatchBar } from './components/BatchBar';
 import { EquitySummary } from './components/EquitySummary';
 import { EventGroup } from './components/EventGroup';
 import { ExposureBar } from './components/ExposureBar';
+import { SemiAutoConfirm } from './components/SemiAutoConfirm';
 import { TradeHistory } from './components/TradeHistory';
 import { SettingsBar } from './components/SettingsBar';
 import { useMonitorStore, useT } from './store';
@@ -136,6 +137,8 @@ export function App() {
           </span>
         </div>
       </header>
+
+      <SemiAutoConfirm />
 
       <section className="app__body">
         {hasAddress && config.showSummary ? (
