@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AuthBar } from './components/AuthBar';
+import { AllOpenOrders } from './components/AllOpenOrders';
 import { BatchBar } from './components/BatchBar';
 import { EquitySummary } from './components/EquitySummary';
 import { EventGroup } from './components/EventGroup';
@@ -167,6 +168,7 @@ export function App() {
               </div>
             </div>
 
+            <AllOpenOrders positions={snapshot?.positions ?? []} />
             <BatchBar books={snapshot?.books ?? {}} positions={snapshot?.positions ?? []} />
 
             <EventGroup

@@ -76,6 +76,8 @@ interface MonitorStore {
   marketMeta: Record<string, MarketMeta>;
   openOrders: Record<string, OpenOrder[]>;
   orderErrors: Record<string, string | null>;
+  allOpenOrders: OpenOrder[];
+  allOrdersError: string | null;
   isLoading: boolean;
   isTrading: boolean;
   authStatus: AuthStatus;
@@ -110,8 +112,11 @@ interface MonitorStore {
   prepareOrder: (payload: Omit<PrepareOrderRequest, 'type'>) => Promise<{ nonce: string; preview: OrderPreview }>;
   confirmOrder: (nonce: string, tokenID: string) => Promise<PlaceSellResult>;
   getOpenOrders: (asset: string) => Promise<OpenOrder[]>;
+  getAllOpenOrders: () => Promise<OpenOrder[]>;
   cancelOrder: (asset: string, orderID: string) => Promise<void>;
+  cancelOrderGlobal: (orderID: string) => Promise<void>;
   cancelAll: (asset: string) => Promise<void>;
+  cancelAllGlobal: () => Promise<void>;
 }
 
 export interface StopLossStatus {
@@ -284,6 +289,8 @@ const monitorStore = create<MonitorStore>((set, get) => ({
   marketMeta: {},
   openOrders: {},
   orderErrors: {},
+  allOpenOrders: [],
+  allOrdersError: null,
   isLoading: false,
   isTrading: false,
   authStatus: { hasKey: false, unlocked: false, authenticated: false },
@@ -800,6 +807,17 @@ const monitorStore = create<MonitorStore>((set, get) => ({
     return response.data;
   },
 
+  getAllOpenOrders: async () => {
+    const response = await sendRuntimeMessage<GetOpenOrdersOkResponse | ErrorResponse>({ type: 'GET_OPEN_ORDERS' });
+    if ('error' in response) {
+      set({ allOrdersError: response.error });
+      throw new Error(response.error);
+    }
+
+    set({ allOpenOrders: response.data, allOrdersError: null });
+    return response.data;
+  },
+
   cancelOrder: async (asset: string, orderID: string) => {
     const response = await sendRuntimeMessage<TradingOkResponse | ErrorResponse>({ type: 'CANCEL_ORDER', orderID });
     if ('error' in response) {
@@ -810,6 +828,16 @@ const monitorStore = create<MonitorStore>((set, get) => ({
     await get().getOpenOrders(asset);
   },
 
+  cancelOrderGlobal: async (orderID: string) => {
+    const response = await sendRuntimeMessage<TradingOkResponse | ErrorResponse>({ type: 'CANCEL_ORDER', orderID });
+    if ('error' in response) {
+      set({ allOrdersError: response.error });
+      throw new Error(response.error);
+    }
+
+    await get().getAllOpenOrders();
+  },
+
   cancelAll: async (asset: string) => {
     const response = await sendRuntimeMessage<TradingOkResponse | ErrorResponse>({ type: 'CANCEL_ALL', asset });
     if ('error' in response) {
@@ -818,6 +846,16 @@ const monitorStore = create<MonitorStore>((set, get) => ({
     }
 
     await get().getOpenOrders(asset);
+  },
+
+  cancelAllGlobal: async () => {
+    const response = await sendRuntimeMessage<TradingOkResponse | ErrorResponse>({ type: 'CANCEL_ALL_GLOBAL' });
+    if ('error' in response) {
+      set({ allOrdersError: response.error });
+      throw new Error(response.error);
+    }
+
+    await get().getAllOpenOrders();
   },
 }));
 

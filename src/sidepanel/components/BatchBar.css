@@ -75,12 +75,6 @@
   color: var(--c-loss);
 }
 
-.pq-batch__btn--cancel {
-  border-color: var(--t-up-bd);
-  background: var(--t-up-bg);
-  color: var(--c-up);
-}
-
 .pq-batch__btn--go {
   border-color: var(--c-blue);
   background: var(--t-blue-bg);

@@ -449,6 +449,18 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResp
       })();
       return true;
     }
+    case 'CANCEL_ALL_GLOBAL': {
+      void (async () => {
+        try {
+          const client = await getTradingClient();
+          // 真·全账户撤单(破坏性):一次调用撤掉所有 open orders,含无持仓的纯买单。
+          sendResponse({ ok: true, data: await client.cancelAll() });
+        } catch (error) {
+          sendResponse({ error: errorMessage(error) });
+        }
+      })();
+      return true;
+    }
     default:
       return false;
   }
