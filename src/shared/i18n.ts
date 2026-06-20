@@ -330,7 +330,6 @@ const DICTIONARY = {
   'allOpenOrders.confirmYes': { zh: '确认全部撤销', en: 'Confirm cancel all' },
   'allOpenOrders.cancel': { zh: '取消', en: 'Cancel' },
   'allOpenOrders.canceling': { zh: '撤销中…', en: 'Canceling…' },
-  'allOpenOrders.empty': { zh: '当前没有挂单', en: 'No open orders' },
   'allOpenOrders.fillPct': { zh: '{pct}% 成交', en: '{pct}% filled' },
   'allOpenOrders.groupSummary': { zh: '{count} 单 · ≈ ${amount}', en: '{count} · ≈ ${amount}' },
 

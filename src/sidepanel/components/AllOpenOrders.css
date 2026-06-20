@@ -162,15 +162,6 @@
   color: var(--c-muted2);
 }
 
-.pq-allorders__empty {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--c-muted2);
-  text-align: center;
-  padding: 8px 0 2px;
-  margin: 0;
-}
-
 .pq-allorders__cancel {
   flex: 0 0 auto;
   padding: 5px 10px;

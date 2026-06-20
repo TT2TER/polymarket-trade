@@ -111,13 +111,11 @@ export function AllOpenOrders({ positions }: AllOpenOrdersProps) {
     }
   }, [allOpenOrders, fetchMarketMeta]);
 
-  // 未启用交易才整块隐藏;已认证则常驻显示(含空态),保证「↻ 刷新」始终可用——
-  // 否则挂单数为 0 时面板消失,新挂的单因无轮询、无刷新按钮而永远不出现。
-  if (!authStatus.authenticated) {
+  // 无挂单(且无错误)时整块隐藏。新挂的单会在持仓轮询(lastUpdated)触发的重拉后自动出现,
+  // 故无需为空态常驻面板/刷新按钮。
+  if (allOpenOrders.length === 0 && !allOrdersError) {
     return null;
   }
-
-  const isEmpty = allOpenOrders.length === 0;
 
   async function handleRefresh(): Promise<void> {
     setBusy('all');
@@ -245,8 +243,6 @@ export function AllOpenOrders({ positions }: AllOpenOrdersProps) {
       ) : null}
 
       {allOrdersError ? <p className="pq-form-error">{allOrdersError}</p> : null}
-
-      {isEmpty && !allOrdersError ? <p className="pq-allorders__empty">{t('allOpenOrders.empty')}</p> : null}
 
       {renderGroup('BUY', buyOrders)}
       {renderGroup('SELL', sellOrders)}
