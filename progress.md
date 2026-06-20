@@ -372,3 +372,20 @@ i18n:AuthBar 文案集中在 `TEXT` 常量,便于 P6 抽取。
 - 2026-06-20 链上对账闭环(用户 $14.33 vs 插件盈亏疑问):① raw 链上 `balanceOf` 读存款钱包 = $0 是**错误方法**——正确读法是 CLOB `getBalanceAllowance` + `POLY_1271`(见 `scripts/test-deposit-wallet.mjs`),实读 balance=14334752=**$14.33** 对上。② 盈亏≠总资产:插件不读 USDC 现金;网页总资产=现金+持仓。③ 用 `/activity` 完整对账:已实现 $5.15(虚高)→ 纳入赎回后 $3.57(=现金口径 卖+赎−买 $3.56);残差 $0.77 经查 = 入金本约 $10.77(maker 奖励有 $1/天门槛,小额账户为 $0,`/activity` 无 REWARD 事件佐证)。账户完全对平:$10.77 + $3.57 = $14.33。
 - 2026-06-20 文档:README 更新(「它能做什么」补 #1–#7 全部新功能;新增「成交历史与盈亏口径」章节解释已实现盈亏方法/赎回/手续费/为何≠网页总资产/maker 奖励门槛;设置项速查加批量上限;已知限制加「不读现金余额」「流水仅最近 500」;数据来源补 /activity、gamma feeSchedule)。成交历史 BUY/SELL/REDEEM 标签汉化。
 - **当前状态**:P7(#1–#7)+ 多轮用户反馈修正 + 手续费/赎回精确化 + 链上对账闭环 + README,全部在分支 `feat/p7-decision-tools`(未合并 main)。typecheck+build 全过,关键逻辑离线 sanity + 真实数据验证。⚠ Chrome 内实跑(尤其交易类 #6/#7 dryRun 触发、流水展示)待用户确认后再合并 main。
+
+---
+
+## 全局「所有挂单」面板(2026-06-20,已合并 main + push origin)
+
+需求:除持仓内逐 token 的 Open orders 外,要一个顶层面板汇总**全账户**所有挂单(买+卖),并明确原「批量操作-撤所有挂单」撤的是什么。
+
+- **现状澄清**:旧 BatchBar 的「撤所有挂单」是**逐持仓**循环 `cancelAll(asset)`,只覆盖**持有的**持仓 token,漏掉「只挂买单、无持仓」的市场。
+- **决策(用户敲定)**:① 新建顶层「所有挂单」面板;② 从 BatchBar **移除**撤单,撤单统一到新面板;③ 买单蓝/卖单琥珀,**刻意避开**红涨绿跌盈亏色;④ 全部撤销走真·全账户 `client.cancelAll()` + 二次确认;⑤ 市场名解析:持仓标题 → gamma `MarketMeta.title`(新增,按 conditionId,补全纯买单)→ 短 id 三级回退。
+- **数据流澄清**(用户追问纠正):挂单/持仓**都是 REST**(挂单走认证 `getOpenOrders`,持仓轮询),只有盘口/价格是 WS 实时。挂单重拉**绑定持仓刷新**,默认 ≤5s 出现。
+- **顺手清理**:删死配置 `booksIntervalMs`(WsSource 下从不引用,盘口走 WS);持仓轮询默认 **15s→5s**;删整个死文件 `DirectSource`(全仓无引用)。
+- **实现**:Codex 编码(spec 见 `docs/all_open_orders_spec.md`)→ Claude 自审修 `created_at` 排序 bug + 面板显隐逻辑。
+- **三轮 Codex 独立复审 + 修正**:
+  - 复审①:挂单重拉原依赖 `snapshot.lastUpdated` → 被**每个 WS 价格 tick** 刷成请求洪水 + 旧响应覆盖新状态(我先前误判为 5s 节奏)。修:新增 `Snapshot.positionsUpdatedAt`(仅持仓刷新推进)+ store 取数代次守卫 `allOrdersFetchSeq`;另:`Array.isArray` 兜底、`CANCEL_ALL_GLOBAL` 校验失败响应、锁定清挂单 + 恢复 `authenticated` 门槛、确认条 `finally` 关闭。
+  - 复审②:锁定竞态(`lock/forgetKey` 未递增 seq,在途请求会写回旧账户)、撤单失败判断过窄(只认字符串 error)、DirectSource 缺 `positionsUpdatedAt`。三项已修。
+  - 复审③:**全部确认正确,零 findings**,Claude 自主判断可合并。
+- **结果**:8 个提交合入 `main` 并 `push origin`(`e2f78ab`)。功能从设计→实现→三轮复审→死代码清理→推送完整闭环。⚠ 交易类(全账户撤单)Chrome 实测仍建议先 dryRun/小额验证。
