@@ -298,10 +298,17 @@ const monitorStore = create<MonitorStore>((set, get) => ({
   authStatus: { hasKey: false, unlocked: false, authenticated: false },
 
   setConfig: async (config: AppConfig) => {
+    const prev = get().config;
     await writeConfig(config);
     set({ config });
 
-    if (monitoringActive) {
+    // 只有真正影响 WS 连接的参数变化时才重连(startMonitoring 会清价格历史/封盘元数据)。
+    // 切模拟(dryRun)/主题/语言/配色/阈值等纯 config 改动保留曲线,不重连——
+    // 否则每次设置改动都会把 #1 价格走势 sparkline 清零(见 priceHistory.ts 决策)。
+    const wsParamsChanged =
+      prev.address !== config.address || prev.positionsIntervalMs !== config.positionsIntervalMs;
+
+    if (monitoringActive && wsParamsChanged) {
       get().startMonitoring();
     }
   },
