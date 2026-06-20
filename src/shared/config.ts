@@ -12,7 +12,6 @@ export interface AppConfig {
   hideSettled: boolean;
   showSummary: boolean;
   positionsIntervalMs: number;
-  booksIntervalMs: number;
   multipliers: number[];
   dryRun: boolean;
   maxOrderUsd: number;
@@ -32,8 +31,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   colorStyle: 'cn',
   hideSettled: false,
   showSummary: true,
-  positionsIntervalMs: 15_000,
-  booksIntervalMs: 5_000,
+  positionsIntervalMs: 5_000,
   multipliers: [2, 3, 5],
   // 存款钱包实盘已打通并验证,默认实盘交易(dryRun=false)。仍受二次确认 + maxOrderUsd 上限保护;可在设置随时切回模拟。
   dryRun: false,
@@ -45,7 +43,6 @@ export const DEFAULT_CONFIG: AppConfig = {
 
 // 轮询间隔下限,防止 storage 被改成 0/负数/非有限值导致疯狂轮询打爆 API。
 const MIN_POSITIONS_INTERVAL_MS = 5_000;
-const MIN_BOOKS_INTERVAL_MS = 2_000;
 const MIN_MAX_ORDER_USD = 0.01;
 
 function clampInterval(value: unknown, min: number, fallback: number): number {
@@ -97,7 +94,6 @@ function normalizeConfig(value: Partial<AppConfig> | undefined): AppConfig {
       MIN_POSITIONS_INTERVAL_MS,
       DEFAULT_CONFIG.positionsIntervalMs,
     ),
-    booksIntervalMs: clampInterval(value?.booksIntervalMs, MIN_BOOKS_INTERVAL_MS, DEFAULT_CONFIG.booksIntervalMs),
     multipliers: sanitizeMultipliers(value?.multipliers),
     dryRun: typeof value?.dryRun === 'boolean' ? value.dryRun : DEFAULT_CONFIG.dryRun,
     maxOrderUsd: clampPositiveNumber(value?.maxOrderUsd, MIN_MAX_ORDER_USD, DEFAULT_CONFIG.maxOrderUsd),
