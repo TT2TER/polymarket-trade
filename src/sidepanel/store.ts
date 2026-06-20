@@ -85,6 +85,8 @@ interface MonitorStore {
   marketMeta: Record<string, MarketMeta>;
   openOrders: Record<string, OpenOrder[]>;
   orderErrors: Record<string, string | null>;
+  allOpenOrders: OpenOrder[];
+  allOrdersError: string | null;
   isLoading: boolean;
   isTrading: boolean;
   authStatus: AuthStatus;
@@ -124,8 +126,11 @@ interface MonitorStore {
   prepareOrder: (payload: Omit<PrepareOrderRequest, 'type'>) => Promise<{ nonce: string; preview: OrderPreview }>;
   confirmOrder: (nonce: string, tokenID: string) => Promise<PlaceSellResult>;
   getOpenOrders: (asset: string) => Promise<OpenOrder[]>;
+  getAllOpenOrders: () => Promise<OpenOrder[]>;
   cancelOrder: (asset: string, orderID: string) => Promise<void>;
+  cancelOrderGlobal: (orderID: string) => Promise<void>;
   cancelAll: (asset: string) => Promise<void>;
+  cancelAllGlobal: () => Promise<void>;
 }
 
 export interface StopLossStatus {
@@ -180,6 +185,8 @@ const requestedConditionIds = new Set<string>();
 let monitorGeneration = 0;
 // gamma 拉取失败后的退避时点:避免失败 id 被移出集合后在每个行情帧紧密重试。
 let metaRetryAfter = 0;
+// 「所有挂单」取数代次:并发/快速重触发时只让最新一次响应落地,丢弃在途旧响应(防 stale 覆盖)。
+let allOrdersFetchSeq = 0;
 // #6 条件单提交失败后重试退避(避免拒单时每帧重触发);模拟成功后的重测间隔。
 const CONDITIONAL_RETRY_MS = 15_000;
 const CONDITIONAL_DRYRUN_RETEST_MS = 30_000;
@@ -343,15 +350,24 @@ const monitorStore = create<MonitorStore>((set, get) => ({
   marketMeta: {},
   openOrders: {},
   orderErrors: {},
+  allOpenOrders: [],
+  allOrdersError: null,
   isLoading: false,
   isTrading: false,
   authStatus: { hasKey: false, unlocked: false, authenticated: false },
 
   setConfig: async (config: AppConfig) => {
+    const prev = get().config;
     await writeConfig(config);
     set({ config });
 
-    if (monitoringActive) {
+    // 只有真正影响 WS 连接的参数变化时才重连(startMonitoring 会清价格历史/封盘元数据)。
+    // 切模拟(dryRun)/主题/语言/配色/阈值等纯 config 改动保留曲线,不重连——
+    // 否则每次设置改动都会把 #1 价格走势 sparkline 清零(见 priceHistory.ts 决策)。
+    const wsParamsChanged =
+      prev.address !== config.address || prev.positionsIntervalMs !== config.positionsIntervalMs;
+
+    if (monitoringActive && wsParamsChanged) {
       get().startMonitoring();
     }
   },
@@ -886,11 +902,17 @@ const monitorStore = create<MonitorStore>((set, get) => ({
 
   lock: async () => {
     assertOk(await sendRuntimeMessage<AuthResponse>({ type: 'LOCK' }));
+    // 锁定即失去 L2 凭据,清掉上一会话的挂单,避免残留旧账户数据。
+    // 递增取数代次,作废任何在途的 getAllOpenOrders——否则它返回时会把旧账户挂单写回。
+    allOrdersFetchSeq += 1;
+    set({ allOpenOrders: [], allOrdersError: null });
     await get().refreshAuthStatus();
   },
 
   forgetKey: async () => {
     assertOk(await sendRuntimeMessage<AuthResponse>({ type: 'FORGET_KEY' }));
+    allOrdersFetchSeq += 1;
+    set({ allOpenOrders: [], allOrdersError: null });
     await get().refreshAuthStatus();
   },
 
@@ -942,6 +964,24 @@ const monitorStore = create<MonitorStore>((set, get) => ({
     return response.data;
   },
 
+  getAllOpenOrders: async () => {
+    const seq = ++allOrdersFetchSeq;
+    const response = await sendRuntimeMessage<GetOpenOrdersOkResponse | ErrorResponse>({ type: 'GET_OPEN_ORDERS' });
+    if (seq !== allOrdersFetchSeq) {
+      // 已有更新的请求在途,本次为陈旧响应,直接丢弃不写状态。
+      return get().allOpenOrders;
+    }
+    if ('error' in response) {
+      set({ allOrdersError: response.error });
+      throw new Error(response.error);
+    }
+
+    // 后台异常时 data 可能不是数组;兜底为空数组,避免组件 .filter 抛错。
+    const data = Array.isArray(response.data) ? response.data : [];
+    set({ allOpenOrders: data, allOrdersError: null });
+    return data;
+  },
+
   cancelOrder: async (asset: string, orderID: string) => {
     const response = await sendRuntimeMessage<TradingOkResponse | ErrorResponse>({ type: 'CANCEL_ORDER', orderID });
     if ('error' in response) {
@@ -952,6 +992,16 @@ const monitorStore = create<MonitorStore>((set, get) => ({
     await get().getOpenOrders(asset);
   },
 
+  cancelOrderGlobal: async (orderID: string) => {
+    const response = await sendRuntimeMessage<TradingOkResponse | ErrorResponse>({ type: 'CANCEL_ORDER', orderID });
+    if ('error' in response) {
+      set({ allOrdersError: response.error });
+      throw new Error(response.error);
+    }
+
+    await get().getAllOpenOrders();
+  },
+
   cancelAll: async (asset: string) => {
     const response = await sendRuntimeMessage<TradingOkResponse | ErrorResponse>({ type: 'CANCEL_ALL', asset });
     if ('error' in response) {
@@ -960,6 +1010,16 @@ const monitorStore = create<MonitorStore>((set, get) => ({
     }
 
     await get().getOpenOrders(asset);
+  },
+
+  cancelAllGlobal: async () => {
+    const response = await sendRuntimeMessage<TradingOkResponse | ErrorResponse>({ type: 'CANCEL_ALL_GLOBAL' });
+    if ('error' in response) {
+      set({ allOrdersError: response.error });
+      throw new Error(response.error);
+    }
+
+    await get().getAllOpenOrders();
   },
 }));
 

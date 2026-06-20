@@ -33,24 +33,16 @@ function formatShares(value: number): string {
   return finite(value).toLocaleString(undefined, { maximumFractionDigits: value > 1000 ? 0 : 2 });
 }
 
-function formatSignedMoney(value: number): string {
-  const v = finite(value);
-  const sign = v > 0 ? '+' : v < 0 ? '−' : '';
-  const abs = Math.abs(v);
-  const body = abs >= 100 ? abs.toFixed(0) : abs.toFixed(2);
-  return `${sign}$${Number(body).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-}
-
-function formatMoney(value: number): string {
-  const v = finite(value);
-  return `$${v.toLocaleString(undefined, { maximumFractionDigits: v >= 100 ? 0 : 2 })}`;
-}
-
 function formatPercent(value: number): string {
   const v = finite(value);
   const sign = v > 0 ? '+' : v < 0 ? '−' : '';
   const abs = Math.abs(v);
   return `${sign}${abs >= 10 ? abs.toFixed(0) : abs.toFixed(1)}%`;
+}
+
+function formatMoney(value: number): string {
+  const v = finite(value);
+  return `$${v.toLocaleString(undefined, { maximumFractionDigits: v >= 100 ? 0 : 2 })}`;
 }
 
 export function PositionRow({ view, defaultMultiplier, isOpen, onToggle }: PositionRowProps) {
@@ -67,10 +59,12 @@ export function PositionRow({ view, defaultMultiplier, isOpen, onToggle }: Posit
   const meta = useMonitorStore((state) => state.marketMeta[view.position.conditionId]);
   const timer = marketTimer(meta?.kickoff ?? null, meta?.settleTime ?? null);
 
-  // 总盈亏 = 已实现(API) + 未实现(本地按最优买价实时计算)。% 仅取未实现(盯市)。
-  const realized = finite(view.position.realizedPnl);
-  const totalPnl = realized + view.unrealizedPnlAbsolute;
-  const gain = view.unrealizedPnlAbsolute >= 0;
+  // 行内金额口径:左=持仓成本(avgPrice×份额),右=当前总价(现价×份额);涨跌色按未实现盈亏。
+  // L1 百分比展示未实现收益率(+375%)。已实现盈亏不并入此处,需要看请去成交历史。
+  const unrealized = view.unrealizedPnlAbsolute;
+  const gain = unrealized >= 0;
+  const cost = finite(view.position.avgPrice) * finite(view.position.size); // 持仓成本
+  const totalValue = view.positionValue; // 当前总价 = 现价 × 份额(cost + unrealized)
   const side = gain ? 'up' : 'down';
 
   const bar = progressBar(view.position.avgPrice, view.currentPrice, targetMultiplier);
@@ -125,9 +119,9 @@ export function PositionRow({ view, defaultMultiplier, isOpen, onToggle }: Posit
         </span>
         <Sparkline avgPrice={view.position.avgPrice} gain={gain} points={points} />
         <span className="pq-row__value">
-          {formatMoney(view.positionValue)}
+          {formatMoney(cost)}
           <span className="pq-dot"> · </span>
-          <span className={`pq-row__pnl--${side}`}>{formatSignedMoney(totalPnl)}</span>
+          <span className={`pq-row__pnl--${side}`}>{formatMoney(totalValue)}</span>
         </span>
       </div>
 

@@ -16,6 +16,8 @@ export interface MarketFee {
 }
 
 export interface MarketMeta {
+  // 市场标题(gamma question)。用于无持仓的纯买单也能显示市场名,取不到为 null(降级短 id)。
+  title: string | null;
   // 开赛时间(体育单场:gameStartTime)。这是流动性骤变的关键时点,但 ≠ 比赛结束/真正封盘
   //(gamma 无比赛结束字段;实测体育市场 endDate==gameStartTime==开赛,开赛后仍 acceptingOrders)。
   kickoff: string | null;
@@ -53,6 +55,7 @@ function chunk<T>(items: T[], size: number): T[][] {
 
 interface GammaMarket {
   conditionId?: string;
+  question?: string;
   gameStartTime?: string;
   endDate?: string;
   feesEnabled?: boolean;
@@ -107,6 +110,7 @@ export async function getMarketMeta(conditionIds: string[]): Promise<Record<stri
       // 体育单场(有 gameStartTime):endDate 不可信(=开赛),settleTime 置 null;
       // 聚合市场(无 gameStartTime):endDate 即结算目标。
       result[id] = {
+        title: typeof market.question === 'string' && market.question.trim() ? market.question.trim() : null,
         kickoff,
         settleTime: kickoff ? null : normalizeIso(market.endDate),
         fee: parseFee(market),

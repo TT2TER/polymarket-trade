@@ -10,7 +10,7 @@ interface BatchBarProps {
   books: Record<string, OrderBook>;
 }
 
-type BatchKind = 'closeLosing' | 'tpWinning' | 'cancelAll';
+type BatchKind = 'closeLosing' | 'tpWinning';
 
 interface PreparedLeg {
   tokenID: string;
@@ -53,7 +53,6 @@ export function BatchBar({ positions, books }: BatchBarProps) {
   const authStatus = useMonitorStore((state) => state.authStatus);
   const prepareOrder = useMonitorStore((state) => state.prepareOrder);
   const confirmOrder = useMonitorStore((state) => state.confirmOrder);
-  const cancelAll = useMonitorStore((state) => state.cancelAll);
 
   const [n, setN] = useState(2);
   const [kind, setKind] = useState<BatchKind | null>(null);
@@ -112,7 +111,7 @@ export function BatchBar({ positions, books }: BatchBarProps) {
     return out;
   }
 
-  async function startSellBatch(target: 'closeLosing' | 'tpWinning'): Promise<void> {
+  async function startSellBatch(target: BatchKind): Promise<void> {
     setResult(null);
     setNote(null);
     const candidates = buildCandidates(target);
@@ -135,17 +134,6 @@ export function BatchBar({ positions, books }: BatchBarProps) {
     setKind(target);
   }
 
-  function startCancelAll(): void {
-    setResult(null);
-    setNote(null);
-    if (open.length === 0) {
-      setNote(t('batch.noTargets'));
-      return;
-    }
-    setLegs([]);
-    setKind('cancelAll');
-  }
-
   const executableLegs = legs.filter((leg) => !leg.error && leg.nonce);
   const totalEst = executableLegs.reduce((sum, leg) => sum + finite(leg.est ?? 0), 0);
   const capExceeded = totalEst > config.batchMaxUsd;
@@ -155,7 +143,7 @@ export function BatchBar({ positions, books }: BatchBarProps) {
       return; // 同步去抖,防快速双击重复提交。
     }
     // 卖出批量:确认时再次校验批量总额上限(不只依赖按钮 disabled,防 stale closure 绕过)。
-    if (kind !== 'cancelAll' && totalEst > config.batchMaxUsd) {
+    if (totalEst > config.batchMaxUsd) {
       setResult(t('batch.capExceeded'));
       setKind(null);
       setLegs([]);
@@ -165,27 +153,16 @@ export function BatchBar({ positions, books }: BatchBarProps) {
     setBusy(true);
     let ok = 0;
     let fail = 0;
-    if (kind === 'cancelAll') {
-      for (const position of open) {
-        try {
-          await cancelAll(position.asset);
-          ok += 1;
-        } catch {
-          fail += 1;
-        }
+    for (const leg of legs) {
+      if (leg.error || !leg.nonce) {
+        fail += 1;
+        continue;
       }
-    } else {
-      for (const leg of legs) {
-        if (leg.error || !leg.nonce) {
-          fail += 1;
-          continue;
-        }
-        try {
-          await confirmOrder(leg.nonce, leg.tokenID);
-          ok += 1;
-        } catch {
-          fail += 1;
-        }
+      try {
+        await confirmOrder(leg.nonce, leg.tokenID);
+        ok += 1;
+      } catch {
+        fail += 1;
       }
     }
     inFlight.current = false;
@@ -223,9 +200,6 @@ export function BatchBar({ positions, books }: BatchBarProps) {
         <button className="pq-batch__btn" disabled={busy} onClick={() => void startSellBatch('tpWinning')} type="button">
           {t('batch.tpWinning', { n })}
         </button>
-        <button className="pq-batch__btn pq-batch__btn--cancel" disabled={busy} onClick={() => startCancelAll()} type="button">
-          {t('batch.cancelAll')}
-        </button>
       </div>
       {note ? <p className="pq-batch__note">{note}</p> : null}
       {result ? <p className="pq-batch__result">{result}</p> : null}
@@ -235,38 +209,32 @@ export function BatchBar({ positions, books }: BatchBarProps) {
           <div className="pq-batch__modal">
             <h3 className="pq-batch__modalTitle">{t('batch.confirmTitle')}</h3>
 
-            {kind === 'cancelAll' ? (
-              <p className="pq-batch__modalText">{t('batch.cancelAllConfirm')}</p>
-            ) : (
-              <>
-                <ul className="pq-batch__legs">
-                  {legs.map((leg) => (
-                    <li className="pq-batch__leg" key={leg.tokenID}>
-                      <span className="pq-batch__legTitle">{leg.title}</span>
-                      {leg.error ? (
-                        <span className="pq-batch__legErr">{t('batch.legError', { error: leg.error })}</span>
-                      ) : (
-                        <span className="pq-batch__legBody">
-                          {t('batch.legSell', { qty: formatShares(leg.qty ?? 0), price: formatCents(leg.price ?? 0) })}
-                          <span className="pq-batch__legEst"> · {formatMoney(leg.est ?? 0)}</span>
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-                <div className="pq-batch__totals">
-                  <span>
-                    {t('batch.total')}: <strong>{formatMoney(totalEst)}</strong>
-                  </span>
-                  <span className={capExceeded ? 'pq-batch__cap--bad' : 'pq-batch__cap'}>
-                    {t('batch.cap')}: {formatMoney(config.batchMaxUsd)}
-                  </span>
-                </div>
-                {capExceeded ? <p className="pq-batch__capWarn">{t('batch.capExceeded')}</p> : null}
-                {/* dryRun 提示按「已准备各腿固化的 dryRun」判定,而非当前 config(防准备→确认间切换造成误示)。 */}
-                {executableLegs.some((leg) => leg.dryRun) ? <p className="pq-batch__note">{t('batch.dryRunNote')}</p> : null}
-              </>
-            )}
+            <ul className="pq-batch__legs">
+              {legs.map((leg) => (
+                <li className="pq-batch__leg" key={leg.tokenID}>
+                  <span className="pq-batch__legTitle">{leg.title}</span>
+                  {leg.error ? (
+                    <span className="pq-batch__legErr">{t('batch.legError', { error: leg.error })}</span>
+                  ) : (
+                    <span className="pq-batch__legBody">
+                      {t('batch.legSell', { qty: formatShares(leg.qty ?? 0), price: formatCents(leg.price ?? 0) })}
+                      <span className="pq-batch__legEst"> · {formatMoney(leg.est ?? 0)}</span>
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="pq-batch__totals">
+              <span>
+                {t('batch.total')}: <strong>{formatMoney(totalEst)}</strong>
+              </span>
+              <span className={capExceeded ? 'pq-batch__cap--bad' : 'pq-batch__cap'}>
+                {t('batch.cap')}: {formatMoney(config.batchMaxUsd)}
+              </span>
+            </div>
+            {capExceeded ? <p className="pq-batch__capWarn">{t('batch.capExceeded')}</p> : null}
+            {/* dryRun 提示按「已准备各腿固化的 dryRun」判定,而非当前 config(防准备→确认间切换造成误示)。 */}
+            {executableLegs.some((leg) => leg.dryRun) ? <p className="pq-batch__note">{t('batch.dryRunNote')}</p> : null}
 
             <div className="pq-batch__modalActions">
               <button className="pq-batch__btn" disabled={busy} onClick={closeModal} type="button">
@@ -274,7 +242,7 @@ export function BatchBar({ positions, books }: BatchBarProps) {
               </button>
               <button
                 className="pq-batch__btn pq-batch__btn--go"
-                disabled={busy || (kind !== 'cancelAll' && (capExceeded || executableLegs.length === 0))}
+                disabled={busy || capExceeded || executableLegs.length === 0}
                 onClick={() => void confirmBatch()}
                 type="button"
               >

@@ -80,6 +80,11 @@ export interface CancelAllRequest {
   asset: string;
 }
 
+// 全账户撤单(破坏性):走 client.cancelAll(),与 per-asset 的 CANCEL_ALL 区分。
+export interface CancelAllGlobalRequest {
+  type: 'CANCEL_ALL_GLOBAL';
+}
+
 export interface StopLossSellRequest {
   type: 'STOP_LOSS_SELL';
   tokenID: string;
@@ -152,6 +157,7 @@ export type RuntimeMessage =
   | ConditionalSellRequest
   | GetOpenOrdersRequest
   | CancelOrderRequest
-  | CancelAllRequest;
+  | CancelAllRequest
+  | CancelAllGlobalRequest;
 
 export type PongResponse = { type: 'pong'; ts: number };

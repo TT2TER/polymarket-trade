@@ -453,6 +453,27 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResp
       })();
       return true;
     }
+    case 'CANCEL_ALL_GLOBAL': {
+      void (async () => {
+        try {
+          const client = await getTradingClient();
+          // 真·全账户撤单(破坏性):一次调用撤掉所有 open orders,含无持仓的纯买单。
+          const result = await client.cancelAll();
+          // throwOnError=false 时失败会以 { error } 形式返回而非抛错;别把失败当成功回给 UI(H1)。
+          // error 可能是字符串、Error 实例或对象,故凡有真值 error 字段一律按失败处理。
+          const errorField =
+            result && typeof result === 'object' ? (result as { error?: unknown }).error : undefined;
+          if (errorField) {
+            sendResponse({ error: errorMessage(errorField) });
+            return;
+          }
+          sendResponse({ ok: true, data: result });
+        } catch (error) {
+          sendResponse({ error: errorMessage(error) });
+        }
+      })();
+      return true;
+    }
     default:
       return false;
   }
