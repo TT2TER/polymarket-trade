@@ -11,6 +11,9 @@ export interface ConditionalConfig {
   takeProfitFraction: number | null; // 0~1
   stopExitPrice: number | null; // 0~1
   stopExitFraction: number | null; // 0~1
+  stopExitDwellMs: number | null; // stopExit 抗插针确认;null=默认 2000ms
+  refK: number | null; // 共享中位数窗口;null=默认 5
+  semiAutoMode: boolean | null; // Phase 2 预留,本阶段不消费
   slippage: number | null; // FAK 限价向下扫单容忍;null=用全局默认
 }
 
@@ -26,6 +29,9 @@ const DEFAULT_CONDITIONAL_CONFIG: ConditionalConfig = {
   takeProfitFraction: null,
   stopExitPrice: null,
   stopExitFraction: null,
+  stopExitDwellMs: null,
+  refK: null,
+  semiAutoMode: null,
   slippage: null,
 };
 
@@ -39,6 +45,10 @@ function clampNullableNumber(value: unknown, min: number, max: number): number |
   return Math.min(max, Math.max(min, value));
 }
 
+function nullableBoolean(value: unknown): boolean | null {
+  return typeof value === 'boolean' ? value : null;
+}
+
 export function normalizeConditionalConfig(value: Partial<ConditionalConfig> | undefined): ConditionalConfig {
   return {
     armed: typeof value?.armed === 'boolean' ? value.armed : DEFAULT_CONDITIONAL_CONFIG.armed,
@@ -46,6 +56,9 @@ export function normalizeConditionalConfig(value: Partial<ConditionalConfig> | u
     takeProfitFraction: clampNullableNumber(value?.takeProfitFraction, 0.05, 1),
     stopExitPrice: clampNullableNumber(value?.stopExitPrice, 0, 1),
     stopExitFraction: clampNullableNumber(value?.stopExitFraction, 0.05, 1),
+    stopExitDwellMs: clampNullableNumber(value?.stopExitDwellMs, 0, 300_000),
+    refK: clampNullableNumber(value?.refK, 1, 25),
+    semiAutoMode: nullableBoolean(value?.semiAutoMode),
     slippage: clampNullableNumber(value?.slippage, 0, 0.5),
   };
 }

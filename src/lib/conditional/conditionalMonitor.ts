@@ -5,6 +5,7 @@
 
 import { getBestBid } from '@/lib/api/clobApi';
 import type { Snapshot } from '@/lib/datasource/types';
+import { DwellGate, medianRef, pushBid } from '@/lib/exit/shared';
 import {
   hasStopExit,
   hasTakeProfit,
@@ -24,7 +25,12 @@ interface AssetRuntime {
   blocked: boolean;
   // 退避时点:settle 后在此之前不评估,避免失败后每帧重试导致连发。
   retryAfter: number;
+  recentBids: number[];
+  stopExitGate: DwellGate;
 }
+
+const DEFAULT_CONDITIONAL_REF_K = 5;
+const DEFAULT_STOP_EXIT_DWELL_MS = 2_000;
 
 export class ConditionalMonitor {
   private readonly runtimes = new Map<string, AssetRuntime>();
@@ -41,16 +47,20 @@ export class ConditionalMonitor {
       }
 
       activeAssets.add(position.asset);
-      // money-path:必须有真实盘口买一才触发/下单(不退回 curPrice,后者未必可成交,与止损一致)。
-      const price = getBestBid(snapshot.books[position.asset]);
-      if (!(price > 0)) {
-        continue; // 本帧无有效买价:保留 runtime,跳过评估。
-      }
-
       const runtime = this.ensureRuntime(position.asset);
       if (runtime.blocked || now < runtime.retryAfter) {
         continue;
       }
+
+      // 必须先校验"当前帧真实买一"有效,否则 medianRef 会回退到历史队列中位数(>0),
+      // 在空盘/薄盘帧用过时价误触发(止盈腿无 dwell,尤其危险)。
+      const liveBid = getBestBid(snapshot.books[position.asset]);
+      if (!(liveBid > 0)) {
+        runtime.stopExitGate.reset(); // 打断 dwell 连续性;保留 runtime 跳过本帧。
+        continue;
+      }
+      pushBid(runtime.recentBids, liveBid, config.refK ?? DEFAULT_CONDITIONAL_REF_K);
+      const price = medianRef(runtime.recentBids);
 
       // 止盈优先于离场判定(同一帧两腿都满足时只触发止盈一次)。
       if (hasTakeProfit(config) && price >= (config.takeProfitPrice as number)) {
@@ -63,7 +73,14 @@ export class ConditionalMonitor {
         });
         continue;
       }
-      if (hasStopExit(config) && price <= (config.stopExitPrice as number)) {
+
+      const stopExitBreach = hasStopExit(config) && price <= (config.stopExitPrice as number);
+      const stopExitConfirmed = runtime.stopExitGate.feed(
+        stopExitBreach,
+        now,
+        config.stopExitDwellMs ?? DEFAULT_STOP_EXIT_DWELL_MS,
+      );
+      if (stopExitConfirmed) {
         runtime.blocked = true;
         this.onTrigger(position.asset, {
           leg: 'stopExit',
@@ -92,6 +109,7 @@ export class ConditionalMonitor {
     if (runtime) {
       runtime.blocked = false;
       runtime.retryAfter = now + Math.max(0, retryAfterMs);
+      runtime.stopExitGate.reset();
     }
   }
 
@@ -102,7 +120,7 @@ export class ConditionalMonitor {
   private ensureRuntime(asset: string): AssetRuntime {
     let runtime = this.runtimes.get(asset);
     if (!runtime) {
-      runtime = { blocked: false, retryAfter: 0 };
+      runtime = { blocked: false, retryAfter: 0, recentBids: [], stopExitGate: new DwellGate() };
       this.runtimes.set(asset, runtime);
     }
     return runtime;

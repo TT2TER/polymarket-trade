@@ -14,11 +14,15 @@ import { samplePriceHistory, type PriceHistory } from '@/lib/calc/priceHistory';
 import { DEFAULT_CONFIG, readConfig, writeConfig, type AppConfig } from '@/shared/config';
 import { translate, type I18nKey } from '@/shared/i18n';
 import {
+  DEFAULT_STOP_LOSS_DEFAULTS,
   normalizeStopLossConfig,
   readStopLossConfigs,
+  readStopLossDefaults,
   writeStopLossConfigs,
+  writeStopLossDefaults,
   type StopLossConfigPatch,
   type StopLossConfigs,
+  type StopLossDefaults,
 } from '@/shared/stopLossConfig';
 import { readTargetMultipliers, writeTargetMultipliers, type TargetMultipliers } from '@/shared/targetMultipliers';
 import {
@@ -57,6 +61,8 @@ type AuthResponse = AuthStatusResponse | OkResponse | ErrorResponse;
 interface MonitorStore {
   config: AppConfig;
   stopLossConfigs: StopLossConfigs;
+  // 全局止损默认值:per-position 未覆盖的字段回落到这里(由 resolveStopLossConfig 合并)。
+  stopLossDefaults: StopLossDefaults;
   stopLossStatuses: StopLossStatuses;
   // #3 到价提醒:每仓阈值配置(被动通知,不下单)。
   priceAlertConfigs: PriceAlertConfigs;
@@ -82,6 +88,7 @@ interface MonitorStore {
   setConfig: (config: AppConfig) => Promise<void>;
   loadConfig: () => Promise<void>;
   loadStopLossConfigs: () => Promise<void>;
+  setStopLossDefaults: (defaults: StopLossDefaults) => Promise<void>;
   loadPriceAlertConfigs: () => Promise<void>;
   setPriceAlert: (asset: string, patch: PriceAlertConfigPatch) => Promise<void>;
   clearAlertCondition: (asset: string, key: AlertConditionKey) => Promise<void>;
@@ -119,6 +126,16 @@ export interface StopLossStatus {
   threshold: number;
   sellFraction: number;
   cooldownUntil: number;
+  priceNow: number;
+  ref: number;
+  cost: number;
+  peak: number;
+  exitLine: number;
+  regime: 'loss-floor' | 'trailing' | 'breakeven' | 'lowprice';
+  activated: boolean;
+  breach: boolean;
+  dwellMs: number;
+  dwellRemainingMs: number;
   lastTriggeredAt: number;
   lastResult: string | null;
   lastError: string | null;
@@ -212,6 +229,16 @@ function patchStopLossStatus(
       threshold: previous?.threshold ?? 0,
       sellFraction: previous?.sellFraction ?? 0,
       cooldownUntil: previous?.cooldownUntil ?? 0,
+      priceNow: previous?.priceNow ?? 0,
+      ref: previous?.ref ?? 0,
+      cost: previous?.cost ?? 0,
+      peak: previous?.peak ?? 0,
+      exitLine: previous?.exitLine ?? 0,
+      regime: previous?.regime ?? 'loss-floor',
+      activated: previous?.activated ?? false,
+      breach: previous?.breach ?? false,
+      dwellMs: previous?.dwellMs ?? 0,
+      dwellRemainingMs: previous?.dwellRemainingMs ?? 0,
       lastTriggeredAt: previous?.lastTriggeredAt ?? 0,
       lastResult: previous?.lastResult ?? null,
       lastError: previous?.lastError ?? null,
@@ -270,6 +297,7 @@ async function handleAlertTrigger(get: () => MonitorStore, trigger: AlertTrigger
 const monitorStore = create<MonitorStore>((set, get) => ({
   config: DEFAULT_CONFIG,
   stopLossConfigs: {},
+  stopLossDefaults: DEFAULT_STOP_LOSS_DEFAULTS,
   stopLossStatuses: {},
   priceAlertConfigs: {},
   conditionalConfigs: {},
@@ -309,7 +337,8 @@ const monitorStore = create<MonitorStore>((set, get) => ({
 
   loadStopLossConfigs: async () => {
     try {
-      set({ stopLossConfigs: await readStopLossConfigs() });
+      const [configs, defaults] = await Promise.all([readStopLossConfigs(), readStopLossDefaults()]);
+      set({ stopLossConfigs: configs, stopLossDefaults: defaults });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       set({
@@ -317,6 +346,11 @@ const monitorStore = create<MonitorStore>((set, get) => ({
         isLoading: false,
       });
     }
+  },
+
+  setStopLossDefaults: async (defaults: StopLossDefaults) => {
+    await writeStopLossDefaults(defaults);
+    set({ stopLossDefaults: defaults });
   },
 
   loadPriceAlertConfigs: async () => {
@@ -690,7 +724,8 @@ const monitorStore = create<MonitorStore>((set, get) => ({
     activeSource = source;
     activeUnsubscribe = source.subscribe((snapshot) => {
       // 每个行情 tick 只 set 一次(合并快照与止损状态),避免一跳触发两次 React 渲染。
-      const stopLossMonitorStatuses = activeStopLossMonitor?.processSnapshot(snapshot, get().stopLossConfigs) ?? {};
+      const stopLossMonitorStatuses =
+        activeStopLossMonitor?.processSnapshot(snapshot, get().stopLossConfigs, get().stopLossDefaults) ?? {};
       // #3 到价提醒:逐 tick 评估阈值;触发只回调通知,不改 store(避免行情帧多余渲染)。
       activeAlertMonitor?.processSnapshot(snapshot, get().priceAlertConfigs);
       // #6 条件单/OCO:逐 tick 评估止盈/离场腿;触发回调 executeConditional。

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Position } from '@/lib/types';
-import type { StopLossConfigPatch } from '@/shared/stopLossConfig';
+import type { StopLossAnchor, StopLossConfigPatch } from '@/shared/stopLossConfig';
 import { useMonitorStore, useT } from '@/sidepanel/store';
 import './StopLossPanel.css';
 
@@ -9,49 +9,151 @@ interface StopLossPanelProps {
   bestBid: number;
 }
 
-// 默认值(无既存配置时)
-const DEFAULT_WINDOW_S = 30;
-const DEFAULT_DROP_PCT = 12;
-const DEFAULT_SELL_PCT = 50;
-const DEFAULT_SLIP_PCT = 5;
+type NullablePatchKey =
+  | 'anchor'
+  | 'activateProfitPct'
+  | 'maxLossPct'
+  | 'baseThreshold'
+  | 'refK'
+  | 'dwellMs'
+  | 'breakevenFloor'
+  | 'lowPriceFloor'
+  | 'sellFraction'
+  | 'slippage';
 
-function formatTime(timestamp: number, fallback: string): string {
-  return timestamp > 0 ? new Date(timestamp).toLocaleTimeString() : fallback;
+interface StopLossDraft {
+  anchor: StopLossAnchor | null;
+  activateProfitPct: number | null;
+  maxLossPct: number | null;
+  baseThreshold: number | null;
+  refK: number | null;
+  dwellMs: number | null;
+  breakevenFloor: boolean | null;
+  lowPriceFloor: number | null;
+  sellFraction: number | null;
+  slippage: number | null;
 }
 
-function formatShares(value: number): string {
-  return (Number.isFinite(value) ? value : 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+const MODE_LABEL_KEYS: Record<StopLossAnchor, 'stopLoss.mode.activatedTrailing' | 'stopLoss.mode.cost' | 'stopLoss.mode.peak'> = {
+  'activated-trailing': 'stopLoss.mode.activatedTrailing',
+  cost: 'stopLoss.mode.cost',
+  peak: 'stopLoss.mode.peak',
+};
+
+const MODE_OPTIONS: StopLossAnchor[] = ['activated-trailing', 'cost', 'peak'];
+
+function formatPct(value: number | null | undefined, digits = 1): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return '--';
+  }
+  return `${(value * 100).toFixed(digits)}%`;
+}
+
+function formatPrice(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value) || value <= 0) {
+    return '--';
+  }
+  return value.toFixed(4);
+}
+
+function rangeFill(value: number, min: number, max: number, color = 'var(--c-down)'): string {
+  const pct = ((value - min) / (max - min)) * 100;
+  const clamped = Math.max(0, Math.min(100, pct));
+  return `linear-gradient(to right, ${color} ${clamped}%, var(--c-track) ${clamped}%)`;
+}
+
+function emptyDraft(): StopLossDraft {
+  return {
+    anchor: null,
+    activateProfitPct: null,
+    maxLossPct: null,
+    baseThreshold: null,
+    refK: null,
+    dwellMs: null,
+    breakevenFloor: null,
+    lowPriceFloor: null,
+    sellFraction: null,
+    slippage: null,
+  };
 }
 
 export function StopLossPanel({ position }: StopLossPanelProps) {
   const t = useT();
   const config = useMonitorStore((state) => state.stopLossConfigs[position.asset]);
+  const defaults = useMonitorStore((state) => state.stopLossDefaults);
   const status = useMonitorStore((state) => state.stopLossStatuses[position.asset]);
   const armStopLoss = useMonitorStore((state) => state.armStopLoss);
   const disarmStopLoss = useMonitorStore((state) => state.disarmStopLoss);
   const setStopLossParams = useMonitorStore((state) => state.setStopLossParams);
 
-  const [windowSeconds, setWindowSeconds] = useState(DEFAULT_WINDOW_S);
-  const [dropPercent, setDropPercent] = useState(DEFAULT_DROP_PCT);
-  const [sellPercent, setSellPercent] = useState(DEFAULT_SELL_PCT);
-  const [slipPercent, setSlipPercent] = useState(DEFAULT_SLIP_PCT);
+  const [draft, setDraft] = useState<StopLossDraft>(() => emptyDraft());
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setWindowSeconds(config?.windowMs ? Math.round(config.windowMs / 1000) : DEFAULT_WINDOW_S);
-    setDropPercent(config?.threshold ? Number((config.threshold * 100).toFixed(1)) : DEFAULT_DROP_PCT);
-    setSellPercent(config?.sellFraction ? Math.round(config.sellFraction * 100) : DEFAULT_SELL_PCT);
-    // slippage 可为 0(有效值),用 != null 判定,避免被当默认。
-    setSlipPercent(config?.slippage != null ? Number((config.slippage * 100).toFixed(1)) : DEFAULT_SLIP_PCT);
-  }, [config?.sellFraction, config?.threshold, config?.windowMs, config?.slippage, position.asset]);
+    setDraft({
+      anchor: config?.anchor ?? null,
+      activateProfitPct: config?.activateProfitPct ?? null,
+      maxLossPct: config?.maxLossPct ?? null,
+      baseThreshold: config?.baseThreshold ?? config?.threshold ?? null,
+      refK: config?.refK ?? null,
+      dwellMs: config?.dwellMs ?? config?.windowMs ?? null,
+      breakevenFloor: config?.breakevenFloor ?? null,
+      lowPriceFloor: config?.lowPriceFloor ?? null,
+      sellFraction: config?.sellFraction ?? null,
+      slippage: config?.slippage ?? null,
+    });
+    setError(null);
+  }, [
+    config?.anchor,
+    config?.activateProfitPct,
+    config?.baseThreshold,
+    config?.breakevenFloor,
+    config?.dwellMs,
+    config?.lowPriceFloor,
+    config?.maxLossPct,
+    config?.refK,
+    config?.sellFraction,
+    config?.slippage,
+    config?.threshold,
+    config?.windowMs,
+    position.asset,
+  ]);
+
+  const isArmed = config?.armed ?? false;
+  const anchor = draft.anchor ?? defaults.anchor;
+  const activateProfitPct = draft.activateProfitPct ?? defaults.activateProfitPct;
+  const maxLossPct = draft.maxLossPct ?? defaults.maxLossPct;
+  const baseThreshold = draft.baseThreshold ?? defaults.baseThreshold;
+  const sellFraction = draft.sellFraction ?? defaults.sellFraction;
+  const slippage = draft.slippage ?? defaults.slippage;
+  const exitLine = status?.exitLine ?? 0;
+  const ref = status?.ref ?? status?.priceNow ?? 0;
+  const distance = ref > 0 && exitLine > 0 ? (ref - exitLine) / ref : null;
+
+  function setDraftField<TKey extends keyof StopLossDraft>(key: TKey, value: StopLossDraft[TKey]): void {
+    setDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  function resetField(key: NullablePatchKey): void {
+    setDraft((current) => ({ ...current, [key]: null }));
+  }
 
   function readPatch(): StopLossConfigPatch {
     return {
-      windowMs: Math.round(windowSeconds * 1000),
-      threshold: dropPercent / 100,
-      sellFraction: sellPercent / 100,
-      slippage: slipPercent / 100,
+      anchor: draft.anchor,
+      activateProfitPct: draft.activateProfitPct,
+      maxLossPct: draft.maxLossPct,
+      baseThreshold: draft.baseThreshold,
+      refK: draft.refK,
+      dwellMs: draft.dwellMs,
+      breakevenFloor: draft.breakevenFloor,
+      lowPriceFloor: draft.lowPriceFloor,
+      sellFraction: draft.sellFraction,
+      slippage: draft.slippage,
+      threshold: null,
+      windowMs: null,
     };
   }
 
@@ -74,14 +176,75 @@ export function StopLossPanel({ position }: StopLossPanelProps) {
     }
   }
 
-  const isArmed = config?.armed ?? false;
-  const cooldownActive = isArmed && (status?.cooldownUntil ?? 0) > Date.now();
-  const sellShares = (sellPercent / 100) * position.size;
+  const badge = (() => {
+    const cooldownActive = (status?.cooldownUntil ?? 0) > Date.now();
+    if (status?.breach && (status.dwellRemainingMs ?? 0) > 0) {
+      return {
+        label: t('stopLoss.badge.confirming', { seconds: ((status.dwellRemainingMs ?? 0) / 1000).toFixed(1) }),
+        tone: 'danger',
+      };
+    }
+    if (status?.breach && (status.dwellRemainingMs ?? 0) <= 0) {
+      return { label: t('stopLoss.badge.triggered'), tone: 'danger' };
+    }
+    if (cooldownActive) {
+      return { label: t('stopLoss.badge.cooldown'), tone: 'muted' };
+    }
+    if (status?.activated && status.regime === 'breakeven') {
+      return { label: t('stopLoss.badge.breakeven'), tone: 'warn' };
+    }
+    if (status?.activated && status.regime === 'lowprice') {
+      return { label: t('stopLoss.badge.lowPrice'), tone: 'warn' };
+    }
+    if (status?.activated) {
+      return { label: t('stopLoss.badge.tracking'), tone: 'ok' };
+    }
+    return { label: t('stopLoss.badge.idle'), tone: 'muted' };
+  })();
 
-  const windowFill = `linear-gradient(to right, var(--c-down) ${((windowSeconds - 1) / 119) * 100}%, var(--c-track) ${((windowSeconds - 1) / 119) * 100}%)`;
-  const dropFill = `linear-gradient(to right, var(--c-down) ${((dropPercent - 3) / 97) * 100}%, var(--c-track) ${((dropPercent - 3) / 97) * 100}%)`;
-  const sellFill = `linear-gradient(to right, var(--c-down) ${((sellPercent - 5) / 95) * 100}%, var(--c-track) ${((sellPercent - 5) / 95) * 100}%)`;
-  const slipFill = `linear-gradient(to right, var(--c-down) ${(slipPercent / 50) * 100}%, var(--c-track) ${(slipPercent / 50) * 100}%)`;
+  const distanceTone = distance === null ? 'muted' : distance > 0.1 ? 'ok' : distance >= 0 ? 'warn' : 'danger';
+
+  const sliderRows =
+    anchor === 'activated-trailing'
+      ? [
+          {
+            key: 'activateProfitPct' as const,
+            label: t('stopLoss.label.activateProfitPct'),
+            value: activateProfitPct,
+            min: 0,
+            max: 1,
+            step: 0.01,
+          },
+          {
+            key: 'maxLossPct' as const,
+            label: t('stopLoss.label.maxLossPct'),
+            value: maxLossPct,
+            min: 0.01,
+            max: 1,
+            step: 0.01,
+          },
+        ]
+      : anchor === 'cost'
+        ? [
+            {
+              key: 'maxLossPct' as const,
+              label: t('stopLoss.label.maxLossPct'),
+              value: maxLossPct,
+              min: 0.01,
+              max: 1,
+              step: 0.01,
+            },
+          ]
+        : [
+            {
+              key: 'baseThreshold' as const,
+              label: t('stopLoss.label.baseThreshold'),
+              value: baseThreshold,
+              min: 0.01,
+              max: 1,
+              step: 0.01,
+            },
+          ];
 
   return (
     <div className="pq-stop">
@@ -104,106 +267,252 @@ export function StopLossPanel({ position }: StopLossPanelProps) {
         </label>
       </div>
 
-      <div className="pq-stop__slider">
-        <div className="pq-trade__row">
-          <span className="pq-label">{t('stopLoss.window')}</span>
-          <span className="pq-stop__val">{windowSeconds}s</span>
-        </div>
-        <input
-          className="pq-range"
+      <label className="pq-field">
+        <span>{t('confirm.mode')}</span>
+        <select
+          className="pq-stop__select"
           disabled={isSaving}
-          max={120}
-          min={1}
-          onChange={(event) => setWindowSeconds(Number(event.target.value))}
-          step={1}
-          style={{ background: windowFill }}
-          type="range"
-          value={windowSeconds}
-        />
-      </div>
+          onChange={(event) => setDraftField('anchor', event.target.value as StopLossAnchor)}
+          value={anchor}
+        >
+          {MODE_OPTIONS.map((mode) => (
+            <option key={mode} value={mode}>
+              {t(MODE_LABEL_KEYS[mode])}
+            </option>
+          ))}
+        </select>
+      </label>
 
-      <div className="pq-stop__slider">
-        <div className="pq-trade__row">
-          <span className="pq-label">{t('stopLoss.drop')}</span>
-          <span className="pq-stop__val">−{dropPercent}%</span>
+      {sliderRows.map((row) => (
+        <div className="pq-stop__slider" key={row.key}>
+          <div className="pq-trade__row">
+            <span className="pq-label">{row.label}</span>
+            <span className={draft[row.key] === null ? 'pq-stop__val pq-stop__val--default' : 'pq-stop__val'}>
+              {formatPct(row.value)}
+            </span>
+          </div>
+          <input
+            className="pq-range"
+            disabled={isSaving}
+            max={row.max}
+            min={row.min}
+            onChange={(event) => setDraftField(row.key, Number(event.target.value))}
+            step={row.step}
+            style={{ background: rangeFill(row.value, row.min, row.max) }}
+            type="range"
+            value={row.value}
+          />
         </div>
-        <input
-          className="pq-range"
-          disabled={isSaving}
-          max={100}
-          min={3}
-          onChange={(event) => setDropPercent(Number(event.target.value))}
-          step={0.5}
-          style={{ background: dropFill }}
-          type="range"
-          value={dropPercent}
-        />
-      </div>
+      ))}
 
-      <div className="pq-stop__slider">
-        <div className="pq-trade__row">
-          <span className="pq-label">{t('stopLoss.sell')}</span>
-          <span className="pq-stop__val">
-            {sellPercent}% <span className="pq-muted">{t('stopLoss.sellShares', { shares: formatShares(sellShares) })}</span>
+      <button className="pq-stop__advanced-toggle" onClick={() => setAdvancedOpen((value) => !value)} type="button">
+        <span className={`pq-section__chevron ${advancedOpen ? 'pq-section__chevron--open' : ''}`}>▾</span>
+        {t('stopLoss.advanced.title')}
+      </button>
+
+      {advancedOpen ? (
+        <div className="pq-stop__advanced">
+          <AdvancedNumber
+            defaultLabel={String(defaults.refK)}
+            disabled={isSaving}
+            label={t('stopLoss.label.refK')}
+            max={25}
+            min={1}
+            onChange={(value) => setDraftField('refK', value)}
+            onReset={() => resetField('refK')}
+            resetLabel={t('stopLoss.advanced.resetToGlobal')}
+            step={1}
+            value={draft.refK}
+          />
+          <AdvancedNumber
+            defaultLabel={formatPct(defaults.baseThreshold)}
+            disabled={isSaving}
+            label={t('stopLoss.label.baseThreshold')}
+            max={100}
+            min={1}
+            onChange={(value) => setDraftField('baseThreshold', value === null ? null : value / 100)}
+            onReset={() => resetField('baseThreshold')}
+            resetLabel={t('stopLoss.advanced.resetToGlobal')}
+            step={1}
+            value={draft.baseThreshold === null ? null : Number((draft.baseThreshold * 100).toFixed(2))}
+          />
+          <AdvancedNumber
+            defaultLabel={String(defaults.dwellMs)}
+            disabled={isSaving}
+            label={t('stopLoss.label.dwellMs')}
+            max={300000}
+            min={0}
+            onChange={(value) => setDraftField('dwellMs', value === null ? null : Math.round(value))}
+            onReset={() => resetField('dwellMs')}
+            resetLabel={t('stopLoss.advanced.resetToGlobal')}
+            step={500}
+            value={draft.dwellMs}
+          />
+          <AdvancedBoolean
+            defaultValue={defaults.breakevenFloor}
+            disabled={isSaving}
+            label={t('stopLoss.label.breakevenFloor')}
+            onChange={(value) => setDraftField('breakevenFloor', value)}
+            onReset={() => resetField('breakevenFloor')}
+            resetLabel={t('stopLoss.advanced.resetToGlobal')}
+            value={draft.breakevenFloor}
+          />
+          <AdvancedNumber
+            defaultLabel={formatPct(defaults.lowPriceFloor)}
+            disabled={isSaving}
+            label={t('stopLoss.label.lowPriceFloor')}
+            max={100}
+            min={0}
+            onChange={(value) => setDraftField('lowPriceFloor', value === null ? null : value / 100)}
+            onReset={() => resetField('lowPriceFloor')}
+            resetLabel={t('stopLoss.advanced.resetToGlobal')}
+            step={1}
+            value={draft.lowPriceFloor === null ? null : Number((draft.lowPriceFloor * 100).toFixed(2))}
+          />
+          <AdvancedNumber
+            defaultLabel={formatPct(defaults.sellFraction)}
+            disabled={isSaving}
+            label={t('stopLoss.label.sellFraction')}
+            max={100}
+            min={5}
+            onChange={(value) => setDraftField('sellFraction', value === null ? null : value / 100)}
+            onReset={() => resetField('sellFraction')}
+            resetLabel={t('stopLoss.advanced.resetToGlobal')}
+            step={1}
+            value={draft.sellFraction === null ? null : Number((draft.sellFraction * 100).toFixed(2))}
+          />
+          <AdvancedNumber
+            defaultLabel={defaults.slippage === null ? '--' : formatPct(defaults.slippage)}
+            disabled={isSaving}
+            label={t('stopLoss.label.slippage')}
+            max={50}
+            min={0}
+            onChange={(value) => setDraftField('slippage', value === null ? null : value / 100)}
+            onReset={() => resetField('slippage')}
+            resetLabel={t('stopLoss.advanced.resetToGlobal')}
+            step={0.5}
+            value={draft.slippage === null ? null : Number((draft.slippage * 100).toFixed(2))}
+          />
+        </div>
+      ) : null}
+
+      <div className="pq-stop__readout">
+        <div className="pq-stop__readout-head">
+          <span className={`pq-stop__badge pq-stop__badge--${badge.tone}`}>{badge.label}</span>
+          <span className="pq-stop__compact">
+            {t('stopLoss.label.sellFraction')} {formatPct(sellFraction, 0)} · {t('stopLoss.label.slippage')}{' '}
+            {slippage === null ? '--' : formatPct(slippage)}
           </span>
         </div>
-        <input
-          className="pq-range"
-          disabled={isSaving}
-          max={100}
-          min={5}
-          onChange={(event) => setSellPercent(Number(event.target.value))}
-          step={1}
-          style={{ background: sellFill }}
-          type="range"
-          value={sellPercent}
-        />
-      </div>
-
-      <div className="pq-stop__slider">
-        <div className="pq-trade__row">
-          <span className="pq-label">{t('stopLoss.slippage')}</span>
-          <span className="pq-stop__val">{slipPercent}%</span>
+        <div className="pq-stop__metrics">
+          <span>
+            {t('stopLoss.exitLine')} <strong>{formatPrice(exitLine)}</strong>
+          </span>
+          <span>
+            {t('stopLoss.ref')} <strong>{formatPrice(ref)}</strong>
+          </span>
+          <span className={`pq-stop__metric--${distanceTone}`}>
+            {t('stopLoss.distance')} <strong>{formatPct(distance)}</strong>
+          </span>
         </div>
-        <input
-          className="pq-range"
-          disabled={isSaving}
-          max={50}
-          min={0}
-          onChange={(event) => setSlipPercent(Number(event.target.value))}
-          step={0.5}
-          style={{ background: slipFill }}
-          type="range"
-          value={slipPercent}
-        />
-      </div>
-
-      <div className="pq-stop__status">
-        <span>
-          {t('stopLoss.drop')}: {((status?.drop ?? 0) * 100).toFixed(1)}% / {((status?.threshold ?? dropPercent / 100) * 100).toFixed(1)}%
-        </span>
-        <span>
-          {t('stopLoss.cooldown')}: {cooldownActive ? t('stopLoss.active') : t('stopLoss.ready')}
-        </span>
-        <span>
-          {t('stopLoss.lastTrigger')}: {formatTime(status?.lastTriggeredAt ?? 0, t('stopLoss.none'))}
-        </span>
       </div>
 
       {status?.lastResult && !status?.lastError ? <p className="pq-trade__result">{status.lastResult}</p> : null}
       {status?.lastError ? <p className="pq-form-error">{status.lastError}</p> : null}
       {error ? <p className="pq-form-error">{error}</p> : null}
 
-      <button
-        className="pq-btn pq-btn--block"
-        disabled={isSaving}
-        onClick={() => void saveParams(isArmed ? null : true)}
-        type="button"
-      >
-        {isSaving ? t('stopLoss.saving') : isArmed ? t('stopLoss.update') : t('stopLoss.armButton')}
+      <button className="pq-btn pq-btn--block" disabled={isSaving} onClick={() => void saveParams(isArmed ? null : true)} type="button">
+        {isSaving ? t('stopLoss.saving') : t('stopLoss.updateBtn')}
       </button>
 
-      <p className="pq-stop__hint">{t('stopLoss.runHint')}</p>
+      <p className="pq-stop__hint">{t('stopLoss.footerNote')}</p>
     </div>
+  );
+}
+
+interface AdvancedNumberProps {
+  defaultLabel: string;
+  disabled: boolean;
+  label: string;
+  max: number;
+  min: number;
+  onChange: (value: number | null) => void;
+  onReset: () => void;
+  resetLabel: string;
+  step: number;
+  value: number | null;
+}
+
+function AdvancedNumber({
+  defaultLabel,
+  disabled,
+  label,
+  max,
+  min,
+  onChange,
+  onReset,
+  resetLabel,
+  step,
+  value,
+}: AdvancedNumberProps) {
+  return (
+    <label className="pq-stop__advanced-field">
+      <span>{label}</span>
+      <div className="pq-stop__advanced-control">
+        <input
+          className={`pq-input ${value === null ? 'pq-stop__input--default' : ''}`}
+          disabled={disabled}
+          max={max}
+          min={min}
+          onChange={(event) => onChange(event.target.value === '' ? null : Number(event.target.value))}
+          placeholder={defaultLabel}
+          step={step}
+          type="number"
+          value={value === null ? '' : value}
+        />
+        <button className="pq-stop__reset" disabled={disabled || value === null} onClick={onReset} title={resetLabel} type="button">
+          ↺
+        </button>
+      </div>
+    </label>
+  );
+}
+
+interface AdvancedBooleanProps {
+  defaultValue: boolean;
+  disabled: boolean;
+  label: string;
+  onChange: (value: boolean | null) => void;
+  onReset: () => void;
+  resetLabel: string;
+  value: boolean | null;
+}
+
+function AdvancedBoolean({ defaultValue, disabled, label, onChange, onReset, resetLabel, value }: AdvancedBooleanProps) {
+  return (
+    <label className="pq-stop__advanced-field">
+      <span>{label}</span>
+      <div className="pq-stop__advanced-control">
+        <select
+          className={`pq-stop__select ${value === null ? 'pq-stop__input--default' : ''}`}
+          disabled={disabled}
+          onChange={(event) => {
+            if (event.target.value === 'global') {
+              onChange(null);
+            } else {
+              onChange(event.target.value === 'true');
+            }
+          }}
+          value={value === null ? 'global' : String(value)}
+        >
+          <option value="global">{defaultValue ? 'true' : 'false'}</option>
+          <option value="true">true</option>
+          <option value="false">false</option>
+        </select>
+        <button className="pq-stop__reset" disabled={disabled || value === null} onClick={onReset} title={resetLabel} type="button">
+          ↺
+        </button>
+      </div>
+    </label>
   );
 }

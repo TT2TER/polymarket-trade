@@ -38,6 +38,9 @@ export function ConditionalPanel({ position }: ConditionalPanelProps) {
   const [tpFraction, setTpFraction] = useState('');
   const [sePrice, setSePrice] = useState('');
   const [seFraction, setSeFraction] = useState('');
+  const [stopExitDwellMs, setStopExitDwellMs] = useState('');
+  const [refK, setRefK] = useState('');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,11 +49,15 @@ export function ConditionalPanel({ position }: ConditionalPanelProps) {
     setTpFraction(pctField(config?.takeProfitFraction ?? null));
     setSePrice(centsField(config?.stopExitPrice ?? null));
     setSeFraction(pctField(config?.stopExitFraction ?? null));
+    setStopExitDwellMs(config?.stopExitDwellMs == null ? '' : String(Math.round(config.stopExitDwellMs)));
+    setRefK(config?.refK == null ? '' : String(Math.round(config.refK)));
   }, [
     config?.takeProfitPrice,
     config?.takeProfitFraction,
     config?.stopExitPrice,
     config?.stopExitFraction,
+    config?.stopExitDwellMs,
+    config?.refK,
     position.asset,
   ]);
 
@@ -61,6 +68,8 @@ export function ConditionalPanel({ position }: ConditionalPanelProps) {
     const tpF = parseField(tpFraction);
     const seP = parseField(sePrice);
     const seF = parseField(seFraction);
+    const dwell = parseField(stopExitDwellMs);
+    const medianK = parseField(refK);
     const tpComplete = tpP !== null && tpF !== null;
     const seComplete = seP !== null && seF !== null;
     return {
@@ -69,6 +78,8 @@ export function ConditionalPanel({ position }: ConditionalPanelProps) {
         takeProfitFraction: tpF === null ? null : tpF / 100,
         stopExitPrice: seP === null ? null : seP / 100,
         stopExitFraction: seF === null ? null : seF / 100,
+        stopExitDwellMs: dwell === null ? null : Math.round(dwell),
+        refK: medianK === null ? null : Math.round(medianK),
       },
       hasLeg: tpComplete || seComplete,
     };
@@ -126,6 +137,43 @@ export function ConditionalPanel({ position }: ConditionalPanelProps) {
           </label>
         ))}
       </div>
+
+      <button className="pq-cond__advanced-toggle" onClick={() => setAdvancedOpen((value) => !value)} type="button">
+        <span className={`pq-section__chevron ${advancedOpen ? 'pq-section__chevron--open' : ''}`}>▾</span>
+        {t('stopLoss.advanced.title')}
+      </button>
+
+      {advancedOpen ? (
+        <div className="pq-cond__grid">
+          <label className="pq-cond__field">
+            <span className="pq-cond__label">{t('conditional.stopExitDwellMs')}</span>
+            <input
+              className="pq-cond__input"
+              disabled={isArmed}
+              inputMode="decimal"
+              min={0}
+              onChange={(e) => setStopExitDwellMs(e.target.value)}
+              step={500}
+              type="number"
+              value={stopExitDwellMs}
+            />
+          </label>
+          <label className="pq-cond__field">
+            <span className="pq-cond__label">{t('conditional.refK')}</span>
+            <input
+              className="pq-cond__input"
+              disabled={isArmed}
+              inputMode="decimal"
+              max={25}
+              min={1}
+              onChange={(e) => setRefK(e.target.value)}
+              step={1}
+              type="number"
+              value={refK}
+            />
+          </label>
+        </div>
+      ) : null}
 
       <div className="pq-cond__actions">
         {isArmed ? (

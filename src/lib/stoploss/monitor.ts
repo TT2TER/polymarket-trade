@@ -1,18 +1,28 @@
 import { getBestBid } from '@/lib/api/clobApi';
 import type { Snapshot } from '@/lib/datasource/types';
 import {
-  DEFAULT_STOP_LOSS_WINDOW_MS,
   createStopLossDetectorState,
   evaluate,
   type StopLossDetectorState,
+  type StopLossRegime,
 } from '@/lib/stoploss/detector';
-import type { StopLossConfigs } from '@/shared/stopLossConfig';
+import {
+  DEFAULT_STOP_LOSS_DEFAULTS,
+  resolveStopLossConfig,
+  type StopLossConfigs,
+  type StopLossDefaults,
+} from '@/shared/stopLossConfig';
 
 export interface StopLossTriggerDetails {
   sellFraction: number;
   drop: number;
   threshold: number;
   priceNow: number;
+  ref: number;
+  cost: number;
+  peak: number;
+  exitLine: number;
+  regime: StopLossRegime;
   sizeNow: number;
 }
 
@@ -21,6 +31,16 @@ export interface StopLossMonitorStatus {
   threshold: number;
   sellFraction: number;
   cooldownUntil: number;
+  priceNow: number;
+  ref: number;
+  cost: number;
+  peak: number;
+  exitLine: number;
+  regime: StopLossRegime;
+  activated: boolean;
+  breach: boolean;
+  dwellMs: number;
+  dwellRemainingMs: number;
 }
 
 export type StopLossMonitorStatuses = Record<string, StopLossMonitorStatus>;
@@ -35,37 +55,51 @@ export class StopLossMonitor {
 
   constructor(private readonly onTrigger: (asset: string, details: StopLossTriggerDetails) => void) {}
 
-  processSnapshot(snapshot: Snapshot, configs: StopLossConfigs, now = Date.now()): StopLossMonitorStatuses {
+  processSnapshot(
+    snapshot: Snapshot,
+    configs: StopLossConfigs,
+    defaults: StopLossDefaults = DEFAULT_STOP_LOSS_DEFAULTS,
+    now = Date.now(),
+  ): StopLossMonitorStatuses {
     const activeAssets = new Set<string>();
 
     for (const position of snapshot.positions) {
-      const config = configs[position.asset];
-      if (!config?.armed || position.redeemable || position.size <= 0) {
+      const config = resolveStopLossConfig(configs[position.asset], defaults);
+      if (!config.armed || position.redeemable || position.size <= 0 || position.avgPrice <= 0) {
         continue;
       }
+
+      // 武装且持仓仍在:先占住 runtime,避免瞬时空盘帧把它当"持仓消失"清空(丢 peak/激活/冷却)。
+      activeAssets.add(position.asset);
+      const runtime = this.ensureRuntime(position.asset);
 
       const priceNow = getBestBid(snapshot.books[position.asset]);
       if (priceNow <= 0) {
+        // 本帧无有效买价:打断 dwell 连续性(空帧不算"持续确认"),跳过评估但保留状态。
+        runtime.detector.dwellGate.reset();
         continue;
       }
 
-      activeAssets.add(position.asset);
-      const runtime = this.ensureRuntime(position.asset);
-      const threshold = config.threshold ?? undefined;
-      const sellFraction = config.sellFraction ?? undefined;
-      const windowMs = config.windowMs ?? DEFAULT_STOP_LOSS_WINDOW_MS;
       const result = evaluate(runtime.detector, priceNow, now, {
-        windowMs,
-        threshold,
-        sellFraction,
-        value: priceNow * position.size,
+        cost: position.avgPrice,
+        config,
       });
 
       runtime.status = {
         drop: result.drop,
         threshold: result.threshold,
         sellFraction: result.sellFraction,
-        cooldownUntil: runtime.detector.cooldownUntil,
+        cooldownUntil: result.cooldownUntil,
+        priceNow: result.priceNow,
+        ref: result.ref,
+        cost: result.cost,
+        peak: result.peak,
+        exitLine: result.exitLine,
+        regime: result.regime,
+        activated: result.activated,
+        breach: result.breach,
+        dwellMs: result.dwellMs,
+        dwellRemainingMs: result.dwellRemainingMs,
       };
 
       if (result.triggered) {
@@ -74,6 +108,11 @@ export class StopLossMonitor {
           drop: result.drop,
           threshold: result.threshold,
           priceNow,
+          ref: result.ref,
+          cost: result.cost,
+          peak: result.peak,
+          exitLine: result.exitLine,
+          regime: result.regime,
           sizeNow: position.size,
         });
       }
@@ -117,6 +156,16 @@ export class StopLossMonitor {
         threshold: 0,
         sellFraction: 0,
         cooldownUntil: 0,
+        priceNow: 0,
+        ref: 0,
+        cost: 0,
+        peak: 0,
+        exitLine: 0,
+        regime: 'loss-floor',
+        activated: false,
+        breach: false,
+        dwellMs: 0,
+        dwellRemainingMs: 0,
       },
     };
     this.runtimes.set(asset, runtime);

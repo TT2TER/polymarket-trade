@@ -1,135 +1,202 @@
-export interface PricePoint {
-  timestamp: number;
-  price: number;
-}
+import { DwellGate, clamp, medianRef, pushBid } from '@/lib/exit/shared';
+import type { ResolvedStopLossConfig, StopLossAnchor } from '@/shared/stopLossConfig';
 
-export interface RollingPriceWindow {
-  prices: PricePoint[];
-}
+export type StopLossRegime = 'loss-floor' | 'trailing' | 'breakeven' | 'lowprice';
 
 export interface StopLossDetectorState {
-  window: RollingPriceWindow;
+  recentBids: number[];
+  peak: number;
+  activated: boolean;
+  breachStart: number;
   cooldownUntil: number;
   waitingForRearm: boolean;
+  dwellGate: DwellGate;
 }
 
 export interface StopLossEvaluateParams {
-  windowMs?: number;
-  threshold?: number;
-  sellFraction?: number;
-  value?: number;
-  cooldownMs?: number;
+  cost: number;
+  config: ResolvedStopLossConfig;
 }
 
 export interface StopLossEvaluation {
   triggered: boolean;
+  ref: number;
+  priceNow: number;
+  cost: number;
+  peak: number;
+  activated: boolean;
+  exitLine: number;
+  regime: StopLossRegime;
+  breach: boolean;
   drop: number;
   threshold: number;
   sellFraction: number;
+  dwellMs: number;
+  dwellRemainingMs: number;
+  cooldownUntil: number;
 }
 
 export const DEFAULT_STOP_LOSS_WINDOW_MS = 30_000;
 export const DEFAULT_STOP_LOSS_COOLDOWN_MS = 60_000;
 
+const PRICE_COEF = 2;
+const TH_MIN = 0.04;
+const TH_MAX_BASE = 0.1;
+const TH_MAX_SLOPE = 0.3;
+
 export function createStopLossDetectorState(): StopLossDetectorState {
   return {
-    window: { prices: [] },
+    recentBids: [],
+    peak: 0,
+    activated: false,
+    breachStart: 0,
     cooldownUntil: 0,
     waitingForRearm: false,
+    dwellGate: new DwellGate(),
   };
 }
 
-function clamp(value: number, min: number, max: number): number {
-  if (!Number.isFinite(value)) {
-    return min;
-  }
-
-  return Math.min(max, Math.max(min, value));
+export function scaledThreshold(price: number, baseThreshold: number): number {
+  const p = clamp(price, 0, 1);
+  const priceFactor = 1 + PRICE_COEF * (1 - p);
+  const thMax = TH_MAX_BASE + TH_MAX_SLOPE * (1 - p);
+  return clamp(baseThreshold * priceFactor, TH_MIN, thMax);
 }
 
-function pruneWindow(window: RollingPriceWindow, now: number, windowMs: number): void {
-  const cutoff = now - windowMs;
-  while (window.prices.length > 0 && window.prices[0].timestamp < cutoff) {
-    window.prices.shift();
+function thresholdFor(ref: number, config: ResolvedStopLossConfig): number {
+  if (config.thresholdMode === 'fixed') {
+    return clamp(config.baseThreshold, 0.01, 1);
   }
+  return scaledThreshold(ref, config.baseThreshold);
 }
 
-export function pushPrice(window: RollingPriceWindow, timestamp: number, price: number): void {
-  if (!Number.isFinite(timestamp) || !Number.isFinite(price) || price <= 0) {
-    return;
-  }
-
-  // 强制时间戳单调:丢弃乱序/时钟回拨的样本,避免按数组头剪枝时残留历史高价导致误触发(M2)。
-  const last = window.prices[window.prices.length - 1];
-  if (last && timestamp < last.timestamp) {
-    return;
-  }
-
-  window.prices.push({ timestamp, price });
+function initialEvaluation(priceNow: number, cost: number, config: ResolvedStopLossConfig): StopLossEvaluation {
+  const threshold = thresholdFor(priceNow, config);
+  const exitLine = cost * (1 - config.maxLossPct);
+  return {
+    triggered: false,
+    ref: 0,
+    priceNow,
+    cost,
+    peak: 0,
+    activated: false,
+    exitLine,
+    regime: 'loss-floor',
+    breach: false,
+    drop: 0,
+    threshold,
+    sellFraction: config.sellFraction,
+    dwellMs: config.dwellMs,
+    dwellRemainingMs: config.dwellMs,
+    cooldownUntil: 0,
+  };
 }
 
-export function maxInWindow(window: RollingPriceWindow, now: number, windowMs: number): number {
-  pruneWindow(window, now, windowMs);
-  let maxPrice = 0;
-
-  for (const point of window.prices) {
-    if (point.price > maxPrice) {
-      maxPrice = point.price;
-    }
-  }
-
-  return maxPrice;
+function shouldPreUpdatePeak(anchor: StopLossAnchor, activated: boolean): boolean {
+  return anchor === 'peak' || (anchor === 'activated-trailing' && activated);
 }
 
-export function currentDrop(window: RollingPriceWindow, now: number, windowMs: number, priceNow: number): number {
-  if (!Number.isFinite(priceNow) || priceNow <= 0) {
-    return 0;
-  }
-
-  const maxPrice = maxInWindow(window, now, windowMs);
-  if (maxPrice <= 0) {
-    return 0;
-  }
-
-  return Math.max(0, (maxPrice - priceNow) / maxPrice);
-}
-
-export function autoThreshold(priceNow: number): number {
-  return clamp(0.05 + 0.1 * (1 - priceNow), 0.04, 0.15);
-}
-
-export function autoSellFraction(drop: number, threshold: number, value: number): number {
-  const severity = clamp(drop / threshold, 1, 2.5);
-  const sizeFactor = clamp(value / 300, 0.7, 1.5);
-  return clamp(0.4 * severity * sizeFactor, 0.25, 1);
+function computeBreach(regime: StopLossRegime, ref: number, exitLine: number): boolean {
+  return regime === 'loss-floor' ? ref <= exitLine : ref < exitLine;
 }
 
 export function evaluate(
   state: StopLossDetectorState,
   priceNow: number,
   now: number,
-  params: StopLossEvaluateParams = {},
+  params: StopLossEvaluateParams,
 ): StopLossEvaluation {
-  const windowMs = params.windowMs ?? DEFAULT_STOP_LOSS_WINDOW_MS;
-  const cooldownMs = params.cooldownMs ?? DEFAULT_STOP_LOSS_COOLDOWN_MS;
-  pushPrice(state.window, now, priceNow);
+  const { config, cost } = params;
+  if (!Number.isFinite(priceNow) || priceNow <= 0 || !Number.isFinite(cost) || cost <= 0) {
+    return initialEvaluation(priceNow, cost, config);
+  }
 
-  const threshold = params.threshold ?? autoThreshold(priceNow);
-  const drop = currentDrop(state.window, now, windowMs, priceNow);
-  const sellFraction = params.sellFraction ?? autoSellFraction(drop, threshold, params.value ?? 0);
-  const overThreshold = drop >= threshold;
+  pushBid(state.recentBids, priceNow, config.refK);
+  const ref = medianRef(state.recentBids);
+  if (ref <= 0) {
+    return initialEvaluation(priceNow, cost, config);
+  }
 
-  if (state.waitingForRearm && now >= state.cooldownUntil && !overThreshold) {
+  if (state.peak <= 0) {
+    state.peak = ref;
+  }
+
+  const threshold = thresholdFor(ref, config);
+  let exitLine: number;
+  let regime: StopLossRegime;
+
+  if (shouldPreUpdatePeak(config.anchor, state.activated)) {
+    state.peak = Math.max(state.peak, ref);
+  }
+
+  const observedPeak = Math.max(state.peak, ref);
+  if (observedPeak < config.lowPriceFloor && config.anchor !== 'cost') {
+    state.peak = observedPeak;
+    exitLine = Math.max(cost - config.cataAbsDrop, cost * config.cataAbsMult);
+    regime = 'lowprice';
+  } else if (config.anchor === 'cost') {
+    exitLine = cost * (1 - config.maxLossPct);
+    regime = 'loss-floor';
+  } else if (config.anchor === 'peak') {
+    exitLine = Math.max(state.peak * (1 - threshold), config.breakevenFloor ? cost : 0);
+    regime = 'trailing';
+  } else if (config.anchor === 'activated-trailing') {
+    if (!state.activated) {
+      const profit = (ref - cost) / cost;
+      if (profit >= config.activateProfitPct && ref - cost >= config.minAbsCushion) {
+        state.activated = true;
+        state.peak = Math.max(state.peak, ref);
+      }
+    }
+
+    if (state.activated) {
+      const raw = state.peak * (1 - threshold);
+      exitLine = Math.max(raw, config.breakevenFloor ? cost : 0);
+      regime = config.breakevenFloor && raw <= cost ? 'breakeven' : 'trailing';
+    } else {
+      exitLine = cost * (1 - config.maxLossPct);
+      regime = 'loss-floor';
+    }
+  } else {
+    exitLine = cost * (1 - config.maxLossPct);
+    regime = 'loss-floor';
+  }
+
+  const breach = computeBreach(regime, ref, exitLine);
+  if (state.waitingForRearm && now >= state.cooldownUntil && !breach) {
     state.waitingForRearm = false;
   }
 
-  if (now < state.cooldownUntil || state.waitingForRearm || !overThreshold) {
-    return { triggered: false, drop, threshold, sellFraction };
+  const confirmed = state.dwellGate.feed(breach, now, config.dwellMs);
+  state.breachStart = state.dwellGate.breachStart;
+  const blocked = now < state.cooldownUntil || state.waitingForRearm;
+  const triggered = confirmed && !blocked;
+  const drop = exitLine > 0 ? Math.max(0, (exitLine - ref) / exitLine) : 0;
+
+  if (triggered) {
+    state.cooldownUntil = now + config.cooldownMs;
+    state.waitingForRearm = true;
+    state.dwellGate.reset();
+    state.breachStart = 0;
   }
 
-  state.cooldownUntil = now + cooldownMs;
-  state.waitingForRearm = true;
-  // 触发后清空窗口:之后的跌幅从新的高点重新度量,避免同一次崩盘在冷却结束后被反复触发(M1)。
-  state.window.prices = [{ timestamp: now, price: priceNow }];
-  return { triggered: true, drop, threshold, sellFraction };
+  const dwellRemainingMs = breach && state.breachStart > 0 ? Math.max(0, config.dwellMs - (now - state.breachStart)) : config.dwellMs;
+
+  return {
+    triggered,
+    ref,
+    priceNow,
+    cost,
+    peak: state.peak,
+    activated: state.activated,
+    exitLine,
+    regime,
+    breach,
+    drop,
+    threshold,
+    sellFraction: config.sellFraction,
+    dwellMs: config.dwellMs,
+    dwellRemainingMs,
+    cooldownUntil: state.cooldownUntil,
+  };
 }
