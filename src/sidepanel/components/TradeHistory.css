@@ -90,6 +90,19 @@
   background: var(--t-blue-bg, transparent);
 }
 
+.pq-hist__feenote {
+  margin: 0;
+  padding: 8px 14px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--c-muted);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.pq-hist__fee {
+  color: var(--c-muted2);
+}
+
 .pq-hist__list {
   flex: 1 1 auto;
   overflow: auto;

@@ -93,6 +93,12 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
           </div>
         ) : null}
 
+        {history && history.buyTakerFees > 0 ? (
+          <p className="pq-hist__feenote">
+            {t('history.buyFees')}: <strong>{money(history.buyTakerFees)}</strong> — {t('history.feeNote')}
+          </p>
+        ) : null}
+
         {history?.truncated ? <p className="pq-hist__warn">{t('history.truncated')}</p> : null}
 
         <div className="pq-hist__list">
@@ -109,6 +115,7 @@ export function TradeHistory({ onClose }: TradeHistoryProps) {
                 <span className="pq-hist__when">{shortTime(row.timestamp, lang)}</span>
                 <span className="pq-hist__detail">
                   {finite(row.size).toLocaleString(undefined, { maximumFractionDigits: 2 })} @ {Math.round(finite(row.price) * 100)}¢ · {money(row.cashUsd)}
+                  {row.buyFee && row.buyFee > 0 ? <span className="pq-hist__fee"> · {t('history.buyFees')} {money(row.buyFee)}</span> : null}
                   {row.realizedPnl !== undefined ? (
                     <span className={`pq-hist__pnl ${sideClass(row.realizedPnl)}`}> · {signedMoney(row.realizedPnl)}</span>
                   ) : null}

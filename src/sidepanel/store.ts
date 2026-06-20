@@ -545,7 +545,7 @@ const monitorStore = create<MonitorStore>((set, get) => ({
     try {
       const limit = 500;
       const trades = await getTrades(address, limit);
-      const history = computeTradeHistory(trades);
+      const history = computeTradeHistory(trades, get().config.takerFeeRate);
       // 命中条数上限 → 历史可能被截断,早期买入缺失会高估已实现盈亏(与 excess 触发的 truncated 合并)。
       if (trades.length >= limit) {
         history.truncated = true;

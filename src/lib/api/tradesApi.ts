@@ -16,6 +16,9 @@ export interface Trade {
   eventSlug: string;
   timestamp: number; // unix 秒
   transactionHash: string;
+  // 本笔用户是否为 taker(吃单)。data-api 默认只返回 taker,故「同时出现在 takerOnly=true 结果」者为 taker。
+  // 仅 taker 的 BUY 收手续费(SELL 豁免、maker 免),用于 #2 已实现盈亏的成本基校正。
+  isTaker: boolean;
 }
 
 function num(value: unknown): number {
@@ -44,17 +47,20 @@ function normalizeTrade(raw: Record<string, unknown>): Trade | null {
     eventSlug: typeof raw.eventSlug === 'string' ? raw.eventSlug : '',
     timestamp: num(raw.timestamp),
     transactionHash: typeof raw.transactionHash === 'string' ? raw.transactionHash : '',
+    isTaker: false,
   };
 }
 
-/** 拉取某地址的成交流水(默认最近 500 笔)。data-api 对无成交返回 404 → 空数组。 */
-export async function getTrades(address: string, limit = 500): Promise<Trade[]> {
+// 成交身份键(用于把 takerOnly=true 子集标记回完整列表)。
+function tradeKey(t: Trade): string {
+  return `${t.transactionHash}|${t.asset}|${t.side}|${t.size}|${t.price}`;
+}
+
+async function fetchTrades(address: string, limit: number, takerOnly: boolean): Promise<Trade[]> {
   const url = new URL(TRADES_URL);
   url.searchParams.set('user', address);
   url.searchParams.set('limit', String(limit));
-  // ⚠ data-api 默认只返回 taker(立即吃单)成交,会漏掉用户挂限价单被吃掉的 maker 成交;
-  // takerOnly=false 取完整成交(maker+taker),流水才全,平均成本法也更准。
-  url.searchParams.set('takerOnly', 'false');
+  url.searchParams.set('takerOnly', takerOnly ? 'true' : 'false');
 
   const response = await fetch(url.toString());
   if (response.status === 404) {
@@ -70,4 +76,27 @@ export async function getTrades(address: string, limit = 500): Promise<Trade[]> 
   return data
     .map((item) => normalizeTrade(item as Record<string, unknown>))
     .filter((trade): trade is Trade => trade !== null);
+}
+
+/**
+ * 拉取某地址的完整成交流水(maker+taker)并标记每笔 isTaker(默认最近 500 笔)。
+ * 两次请求:takerOnly=false 取完整列表;takerOnly=true 取 taker 子集用于标记身份。
+ * taker 子集请求失败不致命(整体降级为全 maker:买入费按 0,只是不校正,不会算错方向)。
+ */
+export async function getTrades(address: string, limit = 500): Promise<Trade[]> {
+  const [all, takerSettled] = await Promise.allSettled([
+    fetchTrades(address, limit, false),
+    fetchTrades(address, limit, true),
+  ]);
+  if (all.status === 'rejected') {
+    throw all.reason instanceof Error ? all.reason : new Error(String(all.reason));
+  }
+  const trades = all.value;
+  if (takerSettled.status === 'fulfilled') {
+    const takerKeys = new Set(takerSettled.value.map(tradeKey));
+    for (const trade of trades) {
+      trade.isTaker = takerKeys.has(tradeKey(trade));
+    }
+  }
+  return trades;
 }

@@ -34,6 +34,7 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
   const [maxOrderUsd, setMaxOrderUsd] = useState(String(config.maxOrderUsd));
   const [stopLossMaxUsd, setStopLossMaxUsd] = useState(String(config.stopLossMaxUsd));
   const [batchMaxUsd, setBatchMaxUsd] = useState(String(config.batchMaxUsd));
+  const [takerFeeRate, setTakerFeeRate] = useState(String(config.takerFeeRate));
   const [hideSettled, setHideSettled] = useState(config.hideSettled);
   const [showSummary, setShowSummary] = useState(config.showSummary);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +46,7 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
     setMaxOrderUsd(String(config.maxOrderUsd));
     setStopLossMaxUsd(String(config.stopLossMaxUsd));
     setBatchMaxUsd(String(config.batchMaxUsd));
+    setTakerFeeRate(String(config.takerFeeRate));
     setHideSettled(config.hideSettled);
     setShowSummary(config.showSummary);
   }, [config]);
@@ -71,6 +73,7 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
       const parsedMaxOrderUsd = Number(maxOrderUsd);
       const parsedStopLossMaxUsd = Number(stopLossMaxUsd);
       const parsedBatchMaxUsd = Number(batchMaxUsd);
+      const parsedTakerFeeRate = Number(takerFeeRate);
       // 轮询间隔不在 UI 暴露,沿用 config 现值。止损滑点已移到每仓(止损 Tab)。
       await setConfig({
         ...config,
@@ -82,6 +85,10 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
         stopLossMaxUsd:
           Number.isFinite(parsedStopLossMaxUsd) && parsedStopLossMaxUsd > 0 ? parsedStopLossMaxUsd : config.stopLossMaxUsd,
         batchMaxUsd: Number.isFinite(parsedBatchMaxUsd) && parsedBatchMaxUsd > 0 ? parsedBatchMaxUsd : config.batchMaxUsd,
+        takerFeeRate:
+          Number.isFinite(parsedTakerFeeRate) && parsedTakerFeeRate >= 0 && parsedTakerFeeRate <= 0.2
+            ? parsedTakerFeeRate
+            : config.takerFeeRate,
       });
       setIsOpen(false);
     } catch (saveError) {
@@ -280,6 +287,18 @@ export function SettingsBar({ defaultOpen = false }: SettingsBarProps) {
                 step="1"
                 type="number"
                 value={batchMaxUsd}
+              />
+            </label>
+            <label className="pq-field">
+              <span>{t('settings.takerFeeRate')}</span>
+              <input
+                className="pq-input"
+                max="0.2"
+                min="0"
+                onChange={(event) => setTakerFeeRate(event.target.value)}
+                step="0.005"
+                type="number"
+                value={takerFeeRate}
               />
             </label>
           </div>

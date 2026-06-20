@@ -109,6 +109,11 @@ const DICTIONARY = {
   'history.export': { zh: '导出 CSV', en: 'Export CSV' },
   'history.refresh': { zh: '刷新', en: 'Refresh' },
   'history.close': { zh: '关闭', en: 'Close' },
+  'history.buyFees': { zh: '买入费(估)', en: 'Buy fees (est)' },
+  'history.feeNote': {
+    zh: '已实现盈亏已扣买入 taker 费(估:费率×量×价×(1−价),默认体育 0.03,可在设置改);卖出免费、maker 免。',
+    en: 'Realized PnL is net of est. buy taker fees (rate×size×price×(1−price), default sports 0.03, editable in settings); sells & makers are free.',
+  },
 
   'ops.targetPrices': { zh: '回本翻倍价', en: 'Target prices' },
   'ops.capped': { zh: '不可达', en: 'capped' },
@@ -215,6 +220,7 @@ const DICTIONARY = {
   'settings.maxOrderUsd': { zh: '最大订单 USD', en: 'Max order USD' },
   'settings.stopLossMaxUsd': { zh: '止损最大 USD', en: 'Stop-loss max USD' },
   'settings.batchMaxUsd': { zh: '批量最大 USD', en: 'Batch max USD' },
+  'settings.takerFeeRate': { zh: '买入taker费率(体育0.03)', en: 'Buy taker fee rate (sports 0.03)' },
   'settings.stopLossSlippage': { zh: '止损滑点 %', en: 'Stop-loss slippage %' },
   'settings.save': { zh: '保存', en: 'Save' },
   'settings.saving': { zh: '保存中...', en: 'Saving...' },

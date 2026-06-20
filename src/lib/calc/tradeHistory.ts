@@ -10,17 +10,30 @@ import type { Trade } from '@/lib/api/tradesApi';
 export interface TradeRow extends Trade {
   /** 本笔现金额 = size × price。 */
   cashUsd: number;
-  /** 卖出的已实现盈亏(买入为 undefined)。 */
+  /** 卖出的已实现盈亏(买入为 undefined);已扣买入侧 taker 费(经成本基)。 */
   realizedPnl?: number;
+  /** 本笔买入 taker 手续费(估;非 taker 买入或卖出为 0)。 */
+  buyFee?: number;
 }
 
 export interface TradeHistory {
   rows: TradeRow[]; // 按时间降序(最近在前)
+  /** 已实现盈亏(已扣买入侧 taker 费;卖出免费)。 */
   totalRealized: number;
   buyCost: number;
   sellProceeds: number;
+  /** 买入 taker 手续费合计(估)。已并入成本基,故 totalRealized 已是净值。 */
+  buyTakerFees: number;
   /** 是否出现卖出量超过已跟踪持仓(历史可能被截断,已实现盈亏或偏高)。 */
   truncated: boolean;
+}
+
+// Polymarket 2026 taker 费:fee = feeRate × 数量 × 价 × (1−价),峰值在 50¢。仅 buy taker;sell 豁免、maker 免。
+function buyTakerFee(size: number, price: number, feeRate: number): number {
+  if (!(feeRate > 0) || !(price > 0) || price >= 1) {
+    return 0;
+  }
+  return feeRate * size * price * (1 - price);
 }
 
 interface AssetBasis {
@@ -28,7 +41,7 @@ interface AssetBasis {
   cost: number;
 }
 
-export function computeTradeHistory(trades: Trade[]): TradeHistory {
+export function computeTradeHistory(trades: Trade[], takerFeeRate = 0): TradeHistory {
   // 正序回放(时间升序;相同时间保持稳定)。
   const ascending = [...trades].sort((a, b) => a.timestamp - b.timestamp);
   const basis = new Map<string, AssetBasis>();
@@ -36,6 +49,7 @@ export function computeTradeHistory(trades: Trade[]): TradeHistory {
   let totalRealized = 0;
   let buyCost = 0;
   let sellProceeds = 0;
+  let buyTakerFees = 0;
   let truncated = false;
 
   for (const trade of ascending) {
@@ -43,11 +57,14 @@ export function computeTradeHistory(trades: Trade[]): TradeHistory {
     const book = basis.get(trade.asset) ?? { shares: 0, cost: 0 };
 
     if (trade.side === 'BUY') {
+      // buy taker 收手续费,计入成本基(maker 买入 / 卖出免);成本基抬高 → 后续卖出已实现盈亏降低。
+      const fee = trade.isTaker ? buyTakerFee(trade.size, trade.price, takerFeeRate) : 0;
       book.shares += trade.size;
-      book.cost += cashUsd;
+      book.cost += cashUsd + fee;
       basis.set(trade.asset, book);
       buyCost += cashUsd;
-      rowsAsc.push({ ...trade, cashUsd });
+      buyTakerFees += fee;
+      rowsAsc.push({ ...trade, cashUsd, buyFee: fee });
       continue;
     }
 
@@ -73,6 +90,7 @@ export function computeTradeHistory(trades: Trade[]): TradeHistory {
     totalRealized,
     buyCost,
     sellProceeds,
+    buyTakerFees,
     truncated,
   };
 }
@@ -85,17 +103,19 @@ function csvCell(value: string | number): string {
 
 /** 导出 CSV(含表头)。realizedPnl 仅卖出有值。 */
 export function tradeHistoryToCsv(history: TradeHistory): string {
-  const header = ['time', 'side', 'market', 'outcome', 'size', 'price', 'cashUsd', 'realizedPnl', 'txHash'];
+  const header = ['time', 'side', 'taker', 'market', 'outcome', 'size', 'price', 'cashUsd', 'buyFee', 'realizedPnl', 'txHash'];
   const lines = [header.join(',')];
   for (const row of history.rows) {
     const cells = [
       new Date(row.timestamp * 1000).toISOString(),
       row.side,
+      row.isTaker ? 'taker' : 'maker',
       row.title || '',
       row.outcome || '',
       String(row.size),
       String(row.price),
       row.cashUsd.toFixed(4),
+      row.buyFee ? row.buyFee.toFixed(4) : '',
       row.realizedPnl === undefined ? '' : row.realizedPnl.toFixed(4),
       row.transactionHash,
     ];

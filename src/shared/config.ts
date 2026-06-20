@@ -21,6 +21,11 @@ export interface AppConfig {
   batchMaxUsd: number;
   // 止损卖单滑点容忍:FAK 限价 = bestBid×(1−slippage),向下扫单确保及时成交(0~0.5)。
   stopLossSlippage: number;
+  // #2 已实现盈亏的「买入 taker 手续费」系数(Polymarket 2026 费率):
+  //   fee = feeRate × 数量 × 价 × (1−价),仅对 buy taker 收取(卖单豁免、maker 免)。
+  //   feeRate = 该品类每 100 股峰值费 / 25:体育 0.03 / 政治·金融·科技 0.04 / 加密 0.072 / 地缘事件 0。
+  //   默认 0.03(体育=世界杯)。仅用于成交历史的成本基校正,不影响下单。
+  takerFeeRate: number;
 }
 
 const CONFIG_KEY = 'appConfig';
@@ -41,6 +46,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   stopLossMaxUsd: 1000,
   batchMaxUsd: 2000,
   stopLossSlippage: 0.05,
+  takerFeeRate: 0.03,
 };
 
 // 轮询间隔下限,防止 storage 被改成 0/负数/非有限值导致疯狂轮询打爆 API。
@@ -104,6 +110,7 @@ function normalizeConfig(value: Partial<AppConfig> | undefined): AppConfig {
     stopLossMaxUsd: clampPositiveNumber(value?.stopLossMaxUsd, MIN_MAX_ORDER_USD, DEFAULT_CONFIG.stopLossMaxUsd),
     batchMaxUsd: clampPositiveNumber(value?.batchMaxUsd, MIN_MAX_ORDER_USD, DEFAULT_CONFIG.batchMaxUsd),
     stopLossSlippage: clampFraction(value?.stopLossSlippage, 0, 0.5, DEFAULT_CONFIG.stopLossSlippage),
+    takerFeeRate: clampFraction(value?.takerFeeRate, 0, 0.2, DEFAULT_CONFIG.takerFeeRate),
   };
 }
 
