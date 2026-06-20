@@ -131,6 +131,19 @@ export class StopLossMonitor {
     this.runtimes.delete(asset);
   }
 
+  // 下单失败后由 store 调用:清掉触发时设的冷却/rearm、重置 dwell,改设一段较短退避,
+  // 使持续破位的仓在 retryAfterMs 后能重新触发(否则失败会静默禁用止损直到 60s 冷却结束)。
+  settle(asset: string, retryAfterMs: number, now = Date.now()): void {
+    const runtime = this.runtimes.get(asset);
+    if (!runtime) {
+      return;
+    }
+    runtime.detector.cooldownUntil = now + Math.max(0, retryAfterMs);
+    runtime.detector.waitingForRearm = false;
+    runtime.detector.dwellGate.reset();
+    runtime.detector.breachStart = 0;
+  }
+
   reset(): void {
     this.runtimes.clear();
   }

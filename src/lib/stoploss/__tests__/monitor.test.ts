@@ -55,4 +55,27 @@ describe('StopLossMonitor — 无效报价帧处理(SEVERE 2 回归)', () => {
     monitor.processSnapshot(snapshot(0.5), cfg, d, 6_100);
     expect(triggers).toEqual([ASSET]);
   });
+
+  it('settle 在失败后清冷却,持续破位可在退避后重试(SEVERE 3)', () => {
+    let count = 0;
+    const monitor = new StopLossMonitor(() => {
+      count += 1;
+    });
+    const cfg: StopLossConfigs = {
+      [ASSET]: normalizeStopLossConfig({ armed: true, anchor: 'cost', maxLossPct: 0.25, dwellMs: 0 }),
+    };
+    const d = DEFAULT_STOP_LOSS_DEFAULTS; // exitLine = 0.2*(1-0.25) = 0.15
+
+    monitor.processSnapshot(snapshot(0.14), cfg, d, 1_000); // 跌破地板 → 立即触发
+    expect(count).toBe(1);
+    monitor.processSnapshot(snapshot(0.14), cfg, d, 2_000); // 冷却中 → 不重复
+    expect(count).toBe(1);
+
+    monitor.settle(ASSET, 15_000, 2_000); // 模拟下单失败:设 15s 退避
+
+    monitor.processSnapshot(snapshot(0.14), cfg, d, 10_000); // 退避未到 → 仍不触发
+    expect(count).toBe(1);
+    monitor.processSnapshot(snapshot(0.14), cfg, d, 18_000); // 退避已过 + 持续破位 → 重试
+    expect(count).toBe(2);
+  });
 });

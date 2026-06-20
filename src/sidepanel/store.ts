@@ -185,6 +185,8 @@ const CONDITIONAL_RETRY_MS = 15_000;
 const CONDITIONAL_DRYRUN_RETEST_MS = 30_000;
 // Phase 2b 半自动确认倒计时;超时按 fail-safe 自动执行(不取消)。
 const SEMI_AUTO_TTL_MS = 10_000;
+// 止损下单失败后的重试退避:清冷却后让持续破位的仓在此时长后可再次触发(避免失败静默禁用 60s)。
+const STOPLOSS_RETRY_MS = 15_000;
 const semiAutoTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function clearSemiAutoTimer(asset: string): void {
@@ -722,6 +724,8 @@ const monitorStore = create<MonitorStore>((set, get) => ({
         stopLossStatuses: patchStopLossStatus(state.stopLossStatuses, asset, { lastResult: null, lastError: message }),
       }));
       notifyDesktop(t('stopLoss.failedTitle'), message);
+      // SEVERE 3:失败不静默禁用——清冷却并设短退避,持续破位的仓可在 STOPLOSS_RETRY_MS 后重试。
+      activeStopLossMonitor?.settle(asset, STOPLOSS_RETRY_MS);
     }
   },
 

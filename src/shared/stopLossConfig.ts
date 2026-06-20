@@ -68,7 +68,8 @@ export const DEFAULT_STOP_LOSS_DEFAULTS: StopLossDefaults = {
   maxLossPct: 0.25,
   sellFraction: 0.6,
   dwellMs: 4_000,
-  requireTradeConfirm: true,
+  // 成交确认尚未实现(需接实时成交流);默认 false 避免误导,实现后再改默认。
+  requireTradeConfirm: false,
   lowPriceFloor: 0.1,
   cataAbsDrop: 0.03,
   cataAbsMult: 0.5,
