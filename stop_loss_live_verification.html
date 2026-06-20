@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>止损系统 · 实盘验收指导</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#171a21; --line:#262b36; --txt:#e6e8ec; --mut:#9aa3b2;
+    --ok:#2ecc71; --warn:#f1c40f; --danger:#e74c3c; --accent:#4ea1ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.6;font-size:15px}
+  .wrap{max-width:880px;margin:0 auto;padding:32px 20px 80px}
+  h1{font-size:26px;margin:0 0 4px}
+  h2{font-size:20px;margin:36px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  h3{font-size:16px;margin:20px 0 8px;color:var(--accent)}
+  .sub{color:var(--mut);margin:0 0 24px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0}
+  .callout{border-left:4px solid var(--accent);padding:12px 16px;border-radius:8px;margin:14px 0;background:#12161d}
+  .callout.warn{border-color:var(--warn)} .callout.danger{border-color:var(--danger)} .callout.ok{border-color:var(--ok)}
+  .callout b{color:#fff}
+  .tag{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:6px;margin-right:6px}
+  .tag.ok{background:rgba(46,204,113,.16);color:var(--ok)}
+  .tag.warn{background:rgba(241,196,15,.16);color:var(--warn)}
+  .tag.danger{background:rgba(231,76,60,.16);color:var(--danger)}
+  .tag.step{background:rgba(78,161,255,.16);color:var(--accent)}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--mut);font-weight:600}
+  code{background:#0b0d11;border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:13px;color:#cfe3ff}
+  ul,ol{margin:8px 0 8px 20px;padding:0} li{margin:4px 0}
+  .check{list-style:none;margin-left:0}
+  .check li{padding-left:28px;position:relative}
+  .check li:before{content:"☐";position:absolute;left:0;color:var(--accent);font-size:16px}
+  .phase{display:flex;gap:12px;align-items:flex-start;margin:10px 0}
+  .phase .n{flex:0 0 36px;height:36px;border-radius:50%;background:var(--accent);color:#04101f;font-weight:800;
+    display:flex;align-items:center;justify-content:center;font-size:15px}
+  .muted{color:var(--mut)}
+  .pill{font-family:ui-monospace,monospace;font-size:13px}
+  .footer{color:var(--mut);font-size:13px;margin-top:40px;border-top:1px solid var(--line);padding-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>止损系统 · 实盘验收指导</h1>
+  <p class="sub">抗插针止损重构(Phase 1 / 2a / 2b + 审查修复)已合并主干。本指导用于<b>真金白银</b>环境下的渐进式验收。核心原则:<b>先模拟、后小额、再放大;始终留逃生开关。</b></p>
+
+  <div class="callout danger">
+    <b>⚠ 三条铁律</b>
+    <ol style="margin-bottom:0">
+      <li><b>面板必须开着止损才生效</b>——监控、半自动倒计时都在侧边栏里。关掉面板 = 无保护。</li>
+      <li><b>止损是减损,不是回本</b>。真事件(进球)造成的重定价损失锁死,止损只防"从半山腰坐到底"与"被插针误割"。</li>
+      <li><b>单点必死的盘(如"全场比分=X")一旦判死,任何止损都救不了</b>——靠仓位管理/提前止盈/对冲,不靠止损。</li>
+    </ol>
+  </div>
+
+  <h2>一、实盘前:设置体检(必做)</h2>
+  <div class="card">
+    <table>
+      <tr><th>项目</th><th>建议</th><th>为什么</th></tr>
+      <tr><td><code>dryRun</code></td><td>先<b>开</b>(模拟)跑通,再关</td><td>模拟下不会真下单,先确认 UI/触发/读出都正常</td></tr>
+      <tr><td>止损资金上限 <code>stopLossMaxUsd</code></td><td>设成你能接受的<b>单次自动卖出额</b>(如 $20)</td><td>后台硬上限,超额直接拒单——防参数错配下的大额误卖</td></tr>
+      <tr><td>滑点 <code>slippage</code></td><td>默认 5%,薄盘可调高到 8–10%</td><td>止损卖单限价地板=买一×(1−滑点);太小急跌时挂不出去,太大成交差</td></tr>
+      <tr><td>半自动确认 <code>semiAutoMode</code></td><td><b>头几次实盘建议开</b></td><td>触发先弹卡片等你一键确认(10s 超时才自动执行),给你"看一眼再决定"的机会</td></tr>
+      <tr><td>模式 <code>anchor</code></td><td>盈利仓用<b>激活跟踪</b>;想"亏到X%才走"用<b>固定离场</b></td><td>三种模式决定止损线由谁算(峰值/成本)</td></tr>
+    </table>
+  </div>
+
+  <h2>二、渐进式上线(分三阶段)</h2>
+
+  <div class="phase"><div class="n">A</div><div>
+    <h3 style="margin-top:2px">模拟软测 <span class="tag ok">无资金</span></h3>
+    <p class="muted" style="margin:2px 0 8px">dryRun 开。把 1–2 个真实持仓武装,放着观察一段(尤其行情波动时)。</p>
+    <ul class="check">
+      <li>武装后徽章从 <span class="pill">未武装·预览</span> → <span class="pill">跟踪中/未激活/...</span>,<b>止损线/参考价/距离随行情实时刷新</b></li>
+      <li>顶部绿条 <span class="pill">⛨ 止损已武装 · 距 X% · 卖 Y%</span> 数值合理且更新(不再是 0s/0%)</li>
+      <li>价格<b>插针</b>(瞬时尖刺)时<b>不触发</b>;持续真跌才进入 <span class="pill">确认中 N.Ns</span> 倒计时</li>
+      <li>触发后面板显示 <span class="pill">(模拟)</span> 结果、无报错;撤防后徽章立刻回 <span class="pill">未武装·预览</span></li>
+      <li>半自动开启时:触发弹<b>置顶卡片 + 系统通知</b>,测 <b>立即平仓 / 取消 / 等10s自动</b> 三条路径</li>
+    </ul>
+    <div class="callout warn" style="margin-top:6px"><b>过关标准:</b>至少经历一次真实的"插针没割 + 真跌触发",且读出/徽章/卡片全程正确。<b>没有日志系统</b>,只能靠面板读出与通知观察,所以请耐心盯一段。</div>
+  </div></div>
+
+  <div class="phase"><div class="n">B</div><div>
+    <h3 style="margin-top:2px">最小额实盘 <span class="tag warn">极小资金</span></h3>
+    <p class="muted" style="margin:2px 0 8px">关 dryRun。用<b>能整仓亏掉也无所谓</b>的最小仓位(几美元),<b>半自动开</b>。</p>
+    <ul class="check">
+      <li>触发时收到卡片/通知,<b>立即平仓</b>能真实成交,面板显示真实订单结果(非模拟)</li>
+      <li>成交价落在<b>买一×(1−滑点)地板之上</b>,与"距离/止损线"读出大致自洽</li>
+      <li>故意制造"取消":取消后<b>持续破位 ~30s 会重新弹确认</b>(snooze),不是永久静默</li>
+      <li>若遇到<b>急跌零成交</b>(FAK 没撮合):应在 ~15s 后<b>自动重试</b>,而不是静默禁用</li>
+    </ul>
+    <div class="callout danger" style="margin-top:6px"><b>红线:</b>一旦出现"成交价离谱""无故触发""撤防后还在卖""卖出量不对",<b>立即撤防、关面板、停手</b>,把现象记下来反馈。</div>
+  </div></div>
+
+  <div class="phase"><div class="n">C</div><div>
+    <h3 style="margin-top:2px">逐步放大 <span class="tag danger">正常资金</span></h3>
+    <p class="muted" style="margin:2px 0 8px">B 阶段稳定后,逐步加仓;熟悉的、流动性好的盘可改<b>全自动</b>(关半自动),薄盘/重仓保持半自动。</p>
+    <ul class="check">
+      <li>每次只放大一档,观察一个完整事件周期再加</li>
+      <li><code>stopLossMaxUsd</code> 随仓位同步上调,始终 ≥ 单次预期卖出额(否则会被拒单)</li>
+      <li>重仓/关键时刻优先<b>半自动</b>;垃圾时间、低波动可<b>全自动</b></li>
+    </ul>
+  </div></div>
+
+  <h2>三、Polymarket 体育盘 · 场景对照</h2>
+  <p class="muted">验收时刻意覆盖这几类,确认行为符合预期:</p>
+  <div class="card">
+    <table>
+      <tr><th>场景</th><th>预期正确行为</th></tr>
+      <tr><td><b>平静持仓 + 单根插针</b>(买一瞬时跳水又回弹)</td><td><span class="tag ok">不触发</span> 中位数参考价吃掉单针,dwell 不计满</td></tr>
+      <tr><td><b>临门高潮 · 来回剧烈波动</b></td><td><span class="tag ok">不被扫</span> 波动自适应自动放宽阈值,正常抖动不触发</td></tr>
+      <tr><td><b>真进球/红牌 · 持续下跌</b></td><td><span class="tag warn">触发出场</span> 破线持续 → 确认 → 卖出;深跌时确认更快(速度自适应)</td></tr>
+      <tr><td><b>盈利仓回撤到成本附近</b>(激活跟踪)</td><td><span class="tag ok">保本不亏</span> 止损线=峰值×(1−阈值)且<b>不低于成本</b>,最坏保本出</td></tr>
+      <tr><td><b>极低价长尾仓</b>(&lt;0.10)</td><td><span class="tag ok">不被噪声斩</span> 关闭百分比跟踪,只走绝对地板;涨过 0.10 才启用跟踪</td></tr>
+      <tr><td><b>单点比分判死 / 临近结算归零</b></td><td><span class="tag danger">救不了</span> 流动性蒸发,止损无能为力——靠提前减仓/对冲</td></tr>
+    </table>
+  </div>
+
+  <h2>四、面板读法速查</h2>
+  <div class="card">
+    <table>
+      <tr><th>读出</th><th>含义</th></tr>
+      <tr><td><b>止损线</b></td><td>当前会触发卖出的价位(已武装=实时;未武装=按当前设置的预览)</td></tr>
+      <tr><td><b>参考价</b></td><td>近几拍买一的中位数(抗插针),不是裸买一</td></tr>
+      <tr><td><b>距离</b></td><td>现价距止损线的百分比。<span style="color:var(--ok)">绿&gt;10%</span> / <span style="color:var(--warn)">黄0–10%</span> / <span style="color:var(--danger)">红已破</span></td></tr>
+      <tr><td>徽章 <b>跟踪中/未激活/保本贴地/低价长尾</b></td><td>当前所处的止损"阶段"(已武装时为实时状态)</td></tr>
+      <tr><td>徽章 <b>确认中 N.Ns</b></td><td>已破线、正在等持续确认(dwell 倒计时);走完才真触发</td></tr>
+      <tr><td>徽章 <b>冷却中</b></td><td>刚触发过,冷却期内不重复触发</td></tr>
+    </table>
+    <p class="muted" style="margin-bottom:0">提示:<b>启用浮盈 / 最大亏损</b>这两个滑块只在"激活前"那段生效;盈利仓已激活后,止损线由<b>峰值、阈值、成本地板</b>决定,调这俩不动线属正常。</p>
+  </div>
+
+  <h2>五、已知边界(务必知情)</h2>
+  <div class="callout warn">
+    <ul style="margin:0">
+      <li><b>面板关闭即无保护</b>:整套监控与半自动倒计时都在侧边栏。要保护就别关面板。</li>
+      <li><b>半自动的 10s 兜底依赖面板在线</b>:倒计时期间关/重载面板,这一次确认可能丢失(重启监控后对持续破位会重新触发)。</li>
+      <li><b>急跌真空可能零成交</b>:FAK 卖单在流动性蒸发时可能不成交,现已自动重试,但<b>真空里仍可能拿不到价</b>——这是市场决定,非 bug。</li>
+      <li><b>无日志系统</b>:目前只能靠面板读出 + chrome 通知观察;事后复盘能力有限。若实盘暴露需要,再单独加日志。</li>
+      <li><b>结算/单点必死救不了</b>(见铁律 3)。</li>
+    </ul>
+  </div>
+
+  <h2>六、出问题怎么办</h2>
+  <div class="card">
+    <ol>
+      <li><b>立即撤防</b>(关武装开关),必要时<b>关面板</b>停止一切自动动作。</li>
+      <li>记录现象:标的、时间、当时的止损线/参考价/距离/徽章、面板里的 lastResult/lastError 文案、以及你看到的成交。</li>
+      <li>切回 <code>dryRun</code> 复现。</li>
+      <li>把以上反馈给我,我在分支 <code>feat/stoploss-redesign</code> 的 worktree 里定位修复。</li>
+    </ol>
+  </div>
+
+  <h2>七、一页验收清单</h2>
+  <div class="card">
+    <ul class="check">
+      <li>设置体检完成(dryRun、上限、滑点、半自动、模式)</li>
+      <li>A·模拟:实时刷新 / 插针不割 / 真跌触发 / 半自动三路径 / 撤防清状态</li>
+      <li>B·最小额:真实成交 / 成交价自洽 / 取消=snooze重提醒 / 零成交自动重试 / 无红线现象</li>
+      <li>C·放大:每次一档 + 上限同步 + 重仓用半自动</li>
+      <li>体育场景对照逐项符合预期</li>
+      <li>已知边界全部知情(尤其"面板关闭无保护")</li>
+    </ul>
+  </div>
+
+  <div class="footer">
+    对应代码:分支已合并 <code>main</code>(merge <code>d076682</code>),逻辑层 14 项单测 + 全链路 Codex 交叉验证。设计与原理详见仓库 <code>stop_loss_redesign_plan.md</code>。<br>
+    本指导面向真金白银验收,请严格按 A→B→C 渐进,任何异常先撤防停手。
+  </div>
+
+</div>
+</body>
+</html>
