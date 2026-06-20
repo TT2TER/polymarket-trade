@@ -43,10 +43,12 @@ describe('stoploss detector redesign', () => {
       expect(result.triggered).toBe(false);
     }
 
-    const breach = tick(state, 0.5, 4_000, 0.2, config);
+    // 破位后短 elapsed 内尚未确认(速度自适应 dwell 会按深度缩短确认时长,精确时长见专项测试)。
+    const breach = tick(state, 0.5, 3_250, 0.2, config);
     expect(breach.breach).toBe(true);
     expect(breach.triggered).toBe(false);
 
+    // 持续破位足够久后触发(间隔远超任何 dwell 上限)。
     const triggered = tick(state, 0.5, 5_000, 0.2, config);
     expect(triggered.triggered).toBe(true);
     expect(triggered.ref).toBe(0.5);

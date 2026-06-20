@@ -16,8 +16,8 @@ const DICTIONARY = {
   'app.live': { zh: 'LIVE', en: 'LIVE' },
 
   'row.armed': {
-    zh: '止损已武装 · {window}s/−{threshold}% → 卖{fraction}%',
-    en: 'Stop armed · {window}s/−{threshold}% → sell {fraction}%',
+    zh: '止损已武装 · 距{distance} · 卖{fraction}',
+    en: 'Stop armed · {distance} away · sell {fraction}',
   },
   'row.wipeout': { zh: '亏光', en: 'Wipeout' },
   'row.breakeven': { zh: '平仓', en: 'Breakeven' },
@@ -348,6 +348,9 @@ const DICTIONARY = {
   'stopLoss.badge.lowPrice': { zh: '低价长尾', en: 'Low-price tail' },
   'stopLoss.badge.tracking': { zh: '跟踪中', en: 'Tracking' },
   'stopLoss.badge.idle': { zh: '未激活', en: 'Idle' },
+  'stopLoss.badge.preview': { zh: '未武装·预览', en: 'Not armed · preview' },
+  'stopLoss.badge.previewTracking': { zh: '预览·跟踪', en: 'Preview · tracking' },
+  'stopLoss.badge.waiting': { zh: '等待行情', en: 'Waiting for ticks' },
   'stopLoss.advanced.title': { zh: '高级(用全局默认)', en: 'Advanced (global defaults)' },
   'stopLoss.advanced.resetToGlobal': { zh: '跟随全局', en: 'Follow global' },
   'stopLoss.defaults.title': { zh: '止损/离场默认', en: 'Stop-loss / exit defaults' },
@@ -355,6 +358,14 @@ const DICTIONARY = {
   'stopLoss.exitLine': { zh: '止损线', en: 'Exit line' },
   'stopLoss.ref': { zh: '参考价', en: 'Ref' },
   'stopLoss.distance': { zh: '距离', en: 'Distance' },
+  'stopLoss.previewNote': {
+    zh: '预览:按当前设置在现价的近似止损线(未武装,不含历史峰值/实时波动)',
+    en: 'Preview: approximate line at current price for these settings (not armed; ignores live peak/volatility)',
+  },
+  'stopLoss.activatedInertNote': {
+    zh: '已激活跟踪:线 = 峰值×(1−阈值) 且不低于成本;“启用浮盈/最大亏损”仅在未激活时影响线',
+    en: 'Activated: line = peak×(1−threshold) floored at cost; activate-profit / max-loss only affect the line before activation',
+  },
   'stopLoss.updateBtn': { zh: '更新', en: 'Update' },
   'stopLoss.footerNote': { zh: '面板开启时生效', en: 'Active while the panel is open' },
   'stopLoss.window': { zh: '窗口', en: 'Window' },

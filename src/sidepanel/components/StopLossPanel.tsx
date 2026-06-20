@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { Position } from '@/lib/types';
-import type { StopLossAnchor, StopLossConfigPatch } from '@/shared/stopLossConfig';
+import { previewStopLoss } from '@/lib/stoploss/detector';
+import {
+  normalizeStopLossConfig,
+  resolveStopLossConfig,
+  type StopLossAnchor,
+  type StopLossConfigPatch,
+} from '@/shared/stopLossConfig';
 import { useMonitorStore, useT } from '@/sidepanel/store';
 import './StopLossPanel.css';
 
@@ -77,7 +83,7 @@ function emptyDraft(): StopLossDraft {
   };
 }
 
-export function StopLossPanel({ position }: StopLossPanelProps) {
+export function StopLossPanel({ position, bestBid }: StopLossPanelProps) {
   const t = useT();
   const config = useMonitorStore((state) => state.stopLossConfigs[position.asset]);
   const defaults = useMonitorStore((state) => state.stopLossDefaults);
@@ -128,9 +134,29 @@ export function StopLossPanel({ position }: StopLossPanelProps) {
   const baseThreshold = draft.baseThreshold ?? defaults.baseThreshold;
   const sellFraction = draft.sellFraction ?? defaults.sellFraction;
   const slippage = draft.slippage ?? defaults.slippage;
-  const exitLine = status?.exitLine ?? 0;
-  const ref = status?.ref ?? status?.priceNow ?? 0;
-  const distance = ref > 0 && exitLine > 0 ? (ref - exitLine) / ref : null;
+
+  // B:草稿配置 → 解析 → 瞬时预览(当前买一价 + 成本),让滑块所见即所得。
+  const draftConfig = normalizeStopLossConfig({
+    ...config, // 保留未在面板暴露的覆盖字段(minAbsCushion / cataAbs* / thresholdMode 等),避免预览与真实监控漂移。
+    armed: isArmed,
+    anchor: draft.anchor,
+    activateProfitPct: draft.activateProfitPct,
+    maxLossPct: draft.maxLossPct,
+    baseThreshold: draft.baseThreshold,
+    refK: draft.refK,
+    dwellMs: draft.dwellMs,
+    breakevenFloor: draft.breakevenFloor,
+    lowPriceFloor: draft.lowPriceFloor,
+    sellFraction: draft.sellFraction,
+    slippage: draft.slippage,
+  });
+  const preview = previewStopLoss(resolveStopLossConfig(draftConfig, defaults), position.avgPrice, bestBid);
+
+  // A:已武装才用监控实时状态(准确);未武装一律用草稿预览,避免显示陈旧的"跟踪中"。
+  const showLive = isArmed && status != null;
+  const exitLine = showLive ? status?.exitLine ?? 0 : preview.exitLine;
+  const ref = showLive ? status?.ref ?? status?.priceNow ?? 0 : preview.ref;
+  const distance = showLive ? (ref > 0 && exitLine > 0 ? (ref - exitLine) / ref : null) : preview.distance;
 
   function setDraftField<TKey extends keyof StopLossDraft>(key: TKey, value: StopLossDraft[TKey]): void {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -177,6 +203,14 @@ export function StopLossPanel({ position }: StopLossPanelProps) {
   }
 
   const badge = (() => {
+    if (!showLive) {
+      if (isArmed) {
+        // 已武装但本会话还没收到首个实时回调:显示"等待行情",别误标"未武装"。
+        return { label: t('stopLoss.badge.waiting'), tone: 'muted' };
+      }
+      // 真·未武装:展示草稿预览徽章,绝不显示陈旧的实时状态。
+      return { label: preview.activated ? t('stopLoss.badge.previewTracking') : t('stopLoss.badge.preview'), tone: 'muted' };
+    }
     const cooldownActive = (status?.cooldownUntil ?? 0) > Date.now();
     if (status?.breach && (status.dwellRemainingMs ?? 0) > 0) {
       return {
@@ -415,6 +449,10 @@ export function StopLossPanel({ position }: StopLossPanelProps) {
             {t('stopLoss.distance')} <strong>{formatPct(distance)}</strong>
           </span>
         </div>
+        {!isArmed ? <p className="pq-stop__hint">{t('stopLoss.previewNote')}</p> : null}
+        {anchor === 'activated-trailing' && (showLive ? status?.activated : preview.activated) ? (
+          <p className="pq-stop__hint">{t('stopLoss.activatedInertNote')}</p>
+        ) : null}
       </div>
 
       {status?.lastResult && !status?.lastError ? <p className="pq-trade__result">{status.lastResult}</p> : null}

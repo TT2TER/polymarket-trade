@@ -56,6 +56,8 @@ function formatPercent(value: number): string {
 export function PositionRow({ view, defaultMultiplier, isOpen, onToggle }: PositionRowProps) {
   const t = useT();
   const stopLossConfig = useMonitorStore((state) => state.stopLossConfigs[view.position.asset]);
+  const stopLossStatus = useMonitorStore((state) => state.stopLossStatuses[view.position.asset]);
+  const stopLossDefaults = useMonitorStore((state) => state.stopLossDefaults);
   const storedMultiplier = useMonitorStore((state) => state.targetMultipliers[view.position.asset]);
   const points = useMonitorStore((state) => state.priceHistory[view.position.asset]) ?? EMPTY_POINTS;
   const targetMultiplier = storedMultiplier ?? defaultMultiplier;
@@ -73,6 +75,13 @@ export function PositionRow({ view, defaultMultiplier, isOpen, onToggle }: Posit
 
   const bar = progressBar(view.position.avgPrice, view.currentPrice, targetMultiplier);
   const armed = stopLossConfig?.armed ?? false;
+  // 武装摘要:距离取自实时状态(现价距退出线),卖出比例取解析后的有效值(可空时跟随全局),
+  // 不再读已废弃的 windowMs/threshold(那是旧 schema 字段,新模型里恒为空 → 显示 0)。
+  const armedDistance =
+    stopLossStatus && stopLossStatus.ref > 0 && stopLossStatus.exitLine > 0
+      ? ((stopLossStatus.ref - stopLossStatus.exitLine) / stopLossStatus.ref) * 100
+      : null;
+  const armedSellPct = ((stopLossConfig?.sellFraction ?? stopLossDefaults.sellFraction) * 100).toFixed(0);
 
   // 现价跳动闪烁:用 ref 直接操作 DOM class,避免 setState 引入额外渲染。
   // 「移类 → 强制回流 → 加类」以在连续 tick(快于动画时长)时可靠地重启动画。
@@ -132,9 +141,8 @@ export function PositionRow({ view, defaultMultiplier, isOpen, onToggle }: Posit
         <div className="pq-row__l4">
           <span className="pq-armed">
             ⛨ {t('row.armed', {
-              window: Math.round((stopLossConfig?.windowMs ?? 0) / 1000),
-              threshold: ((stopLossConfig?.threshold ?? 0) * 100).toFixed(0),
-              fraction: ((stopLossConfig?.sellFraction ?? 0) * 100).toFixed(0),
+              distance: armedDistance == null ? '—' : `${armedDistance.toFixed(0)}%`,
+              fraction: `${armedSellPct}%`,
             })}
           </span>
         </div>
