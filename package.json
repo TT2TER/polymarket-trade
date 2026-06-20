@@ -1,7 +1,7 @@
 {
   "name": "polymarket-trade",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "description": "Polymarket 持仓助手 — 多持仓监控 + 便捷卖出/止损 的浏览器扩展",
   "scripts": {
