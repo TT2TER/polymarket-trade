@@ -368,3 +368,25 @@ volEwmaHalfLifeMs=90000, sigmaRef=0.02, confirmTtlMs=10000, onTimeout='execute',
 
 ### 9.6 UI 改动文件
 `StopLossPanel.tsx`(重写)、新 `SemiAutoConfirm.tsx`(+css)、`SettingsBar.tsx`(止损默认区)、`ConditionalPanel.tsx`(平行)、`store.ts`(pendingConfirm + 半自动流 + 全局默认接线)、`i18n.ts`(新文案)、`shared/config.ts` 或新 `stopLossDefaults` 存储。
+
+---
+
+## 10. 实施进度与状态(分支 feat/stoploss-redesign)
+
+> 开发在 worktree `polymarket-trade-stoploss` 进行(主树 `polymarket-trade` 留给另一会话)。新会话续作请先读本文件 §0–9。
+
+### 已完成并提交
+- **Phase 1**(`2859463`):中位数参考 + 激活跟踪 + 保本地板 + maxLossPct 地板 + 价位缩放阈值 + 低价退化 + 定长 dwell;OCO stopExit 接共享中位数+dwell;修独立审查 SEVERE 1/2 + MEDIUM 4。
+- **Phase 2a + UI 预览/横幅**(`03a6b99`):波动自适应阈值(时间感知 EWMA,本拍阈值用上一拍 σ)、速度自适应 dwell;`previewStopLoss` 草稿预览;PositionRow 武装横幅改读实时状态。修审查 SEVERE 1(EWMA 顺序)+ MEDIUM 1/2。
+- **Phase 2b**(`92ff1cc`):per-position `semiAutoMode` + 待确认队列 + `SemiAutoConfirm` 卡片(倒计时/确认/取消)+ chrome 通知 + 10s fail-safe。
+- **Backlog**(`5d2ddd5`):SEVERE 3(止损失败 `monitor.settle` 重试,15s 退避)+ MEDIUM 6(`requireTradeConfirm` 默认 false)。
+- 测试:14/14(detector 4 + adaptive 6 + monitor 2 + shared 2);typecheck + build 全绿。
+
+### 待目视验收(dryRun)
+精简面板交互、实时止损线读出、A/B 预览、横幅、半自动卡片全流程。**逻辑层已单测覆盖(含插针/激活/低价/速度/EWMA 顺序/settle 重试);抗插针的最终确认需真实行情软测。**
+
+### 未做(经评估,建议按需再定,非阻塞)
+- **成交确认 `requireTradeConfirm`**:需把实时成交流接进 monitor(当前 Snapshot 无 trades)。ROI 低(dwell+中位数已很好滤针);默认已置 false。
+- **深度加权参考价(VWAP-to-size,Phase 3a)**:可行(book 有深度),进一步抗"薄顶档插针";但改核心参考价、与已测行为耦合,建议作为 opt-in 模式单独做。
+- **大单分批执行(Phase 3,scaled exit)**:触及后台真实下单路径,风险高,需真实下单测试,**不宜盲改**。
+- **MEDIUM 5**(旧 `threshold` 迁移):低影响(运行时忽略旧字段用默认;面板已迁移显示);判定为 won't-fix(再保存即归一)。
