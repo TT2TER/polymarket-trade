@@ -101,11 +101,14 @@ export class DirectSource implements DataSource {
       }
 
       this.errors.positions = null;
+      const now = Date.now();
       this.snapshot = {
         ...this.snapshot,
         positions,
         books: this.pruneBooks(positions.map((position) => position.asset)),
-        lastUpdated: Date.now(),
+        lastUpdated: now,
+        // 仅持仓刷新推进 positionsUpdatedAt(与 WsSource 一致);供「跟随持仓刷新」的订阅(如挂单重拉)。
+        positionsUpdatedAt: now,
         error: this.combinedError(),
       };
       this.emit();

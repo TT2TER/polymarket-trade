@@ -754,12 +754,15 @@ const monitorStore = create<MonitorStore>((set, get) => ({
   lock: async () => {
     assertOk(await sendRuntimeMessage<AuthResponse>({ type: 'LOCK' }));
     // 锁定即失去 L2 凭据,清掉上一会话的挂单,避免残留旧账户数据。
+    // 递增取数代次,作废任何在途的 getAllOpenOrders——否则它返回时会把旧账户挂单写回。
+    allOrdersFetchSeq += 1;
     set({ allOpenOrders: [], allOrdersError: null });
     await get().refreshAuthStatus();
   },
 
   forgetKey: async () => {
     assertOk(await sendRuntimeMessage<AuthResponse>({ type: 'FORGET_KEY' }));
+    allOrdersFetchSeq += 1;
     set({ allOpenOrders: [], allOrdersError: null });
     await get().refreshAuthStatus();
   },
