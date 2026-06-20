@@ -5,6 +5,7 @@
 // ⚠ 截断风险:若历史很长被 limit 截断,早期买入缺失会使后续卖出的成本基偏低(高估盈亏)。
 // 卖出量超过已跟踪持仓时,超出部分按 0 成本计入(高估),并置 truncated 标志提示用户。
 
+import type { MarketFee } from '@/lib/api/gammaApi';
 import type { Trade } from '@/lib/api/tradesApi';
 
 export interface TradeRow extends Trade {
@@ -28,12 +29,16 @@ export interface TradeHistory {
   truncated: boolean;
 }
 
-// Polymarket 2026 taker 费:fee = feeRate × 数量 × 价 × (1−价),峰值在 50¢。仅 buy taker;sell 豁免、maker 免。
-function buyTakerFee(size: number, price: number, feeRate: number): number {
-  if (!(feeRate > 0) || !(price > 0) || price >= 1) {
+/** 按 conditionId 解析该市场官方费率表;返回 null 表示不校正手续费。 */
+export type FeeResolver = (conditionId: string) => MarketFee | null;
+
+// Polymarket 官方 taker 费(gamma feeSchedule):fee = rate × 数量 × 价 × (价×(1−价))^exponent。
+// exponent=1 时峰值在 ~2/3(非 50¢);仅 buy taker 收取(sell 豁免、maker 免)。
+function buyTakerFee(size: number, price: number, fee: MarketFee | null): number {
+  if (!fee || !fee.enabled || !(fee.rate > 0) || !(price > 0) || price >= 1) {
     return 0;
   }
-  return feeRate * size * price * (1 - price);
+  return fee.rate * size * price * Math.pow(price * (1 - price), fee.exponent);
 }
 
 interface AssetBasis {
@@ -41,7 +46,7 @@ interface AssetBasis {
   cost: number;
 }
 
-export function computeTradeHistory(trades: Trade[], takerFeeRate = 0): TradeHistory {
+export function computeTradeHistory(trades: Trade[], feeFor?: FeeResolver): TradeHistory {
   // 正序回放(时间升序;相同时间保持稳定)。
   const ascending = [...trades].sort((a, b) => a.timestamp - b.timestamp);
   const basis = new Map<string, AssetBasis>();
@@ -58,7 +63,7 @@ export function computeTradeHistory(trades: Trade[], takerFeeRate = 0): TradeHis
 
     if (trade.side === 'BUY') {
       // buy taker 收手续费,计入成本基(maker 买入 / 卖出免);成本基抬高 → 后续卖出已实现盈亏降低。
-      const fee = trade.isTaker ? buyTakerFee(trade.size, trade.price, takerFeeRate) : 0;
+      const fee = trade.isTaker ? buyTakerFee(trade.size, trade.price, feeFor?.(trade.conditionId) ?? null) : 0;
       book.shares += trade.size;
       book.cost += cashUsd + fee;
       basis.set(trade.asset, book);

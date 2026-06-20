@@ -8,7 +8,7 @@ import { ConditionalMonitor, type ConditionalTriggerDetails } from '@/lib/condit
 import { WsSource } from '@/lib/datasource/wsSource';
 import { getTodayPnl } from '@/lib/api/userPnl';
 import { getTrades } from '@/lib/api/tradesApi';
-import { computeTradeHistory, type TradeHistory } from '@/lib/calc/tradeHistory';
+import { computeTradeHistory, type FeeResolver, type TradeHistory } from '@/lib/calc/tradeHistory';
 import { getMarketMeta, type MarketMeta } from '@/lib/api/gammaApi';
 import { samplePriceHistory, type PriceHistory } from '@/lib/calc/priceHistory';
 import { DEFAULT_CONFIG, readConfig, writeConfig, type AppConfig } from '@/shared/config';
@@ -545,7 +545,16 @@ const monitorStore = create<MonitorStore>((set, get) => ({
     try {
       const limit = 500;
       const trades = await getTrades(address, limit);
-      const history = computeTradeHistory(trades, get().config.takerFeeRate);
+      // 按需拉取这些市场的官方费率表(gamma,不在实时监控路径上);失败则降级为不校正手续费。
+      let feeFor: FeeResolver | undefined;
+      try {
+        const conditionIds = [...new Set(trades.map((t) => t.conditionId).filter((id) => id.length > 0))];
+        const meta = await getMarketMeta(conditionIds);
+        feeFor = (conditionId: string) => meta[conditionId]?.fee ?? null;
+      } catch {
+        feeFor = undefined; // 费率拉取失败:不校正(已实现盈亏为不含费的口径)。
+      }
+      const history = computeTradeHistory(trades, feeFor);
       // 命中条数上限 → 历史可能被截断,早期买入缺失会高估已实现盈亏(与 excess 触发的 truncated 合并)。
       if (trades.length >= limit) {
         history.truncated = true;
