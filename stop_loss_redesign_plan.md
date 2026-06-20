@@ -238,7 +238,7 @@ interface StopLossConfig {
   maxLossPct: number;                             // 0.25 (未激活下行地板)
   sellFraction: number;                           // 0.60 触发时卖出比例
   dwellMs: number;                                // 4000
-  requireTradeConfirm: boolean;                   // true (Ph2)
+  requireTradeConfirm: boolean;                   // false(成交确认未实现,默认关;Ph2 待评估)
   lowPriceFloor: number;                          // 0.10
   slippage: number | null;                        // 地板
   scaledExit: boolean;                            // true (Ph3)
@@ -281,7 +281,7 @@ volEwmaHalfLifeMs=90000, sigmaRef=0.02, confirmTtlMs=10000, onTimeout='execute',
 | 退出线 | `maxLossPct` | 未激活仓最大亏损地板 | 0.25 | 🔴 |
 |  | `dwellMs` | 破线确认时长 | 4000 | 🔴 |
 |  | `dwellVelocityScale / minDwellMs` | 速度自适应 dwell | —/600 | 🟡 |
-|  | `requireTradeConfirm` | 是否要求成交确认 | true | 🟡 |
+|  | `requireTradeConfirm` | 是否要求成交确认(未实现,默认关) | false | 🟡 |
 | 低价 | `lowPriceFloor` | 关百分比跟踪的价位 | 0.10 | 🔴 |
 |  | `cataAbsDrop / cataAbsMult` | 低价绝对地板 | 0.03 / 0.5 | 🟡 |
 | 执行 | `slippage` | 卖单限价地板 | 全局默认 | 🔴 |

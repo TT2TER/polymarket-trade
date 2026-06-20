@@ -29,6 +29,8 @@ const pendingOrders = new Map<string, { params: PlaceSellParams; createdAt: numb
 
 // 后台层止损冷却:面板 monitor 的冷却仅在面板内存,后台据此防止重放消息在冷却期内连发真实卖出(H1)。
 const STOP_LOSS_BG_COOLDOWN_MS = 60_000;
+// 零成交(FAK 未撮合)后的短退避:不设完整冷却,允许持续破位时尽快重试,避免静默失去保护。
+const STOP_LOSS_BG_RETRY_MS = 15_000;
 const stopLossCooldownUntil = new Map<string, number>();
 // #6 条件单后台冷却:同止损,防重放消息在冷却期内连发真实卖出。
 const CONDITIONAL_BG_COOLDOWN_MS = 60_000;
@@ -346,7 +348,9 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResp
 
           const result = await placeSell(client, params);
           if (!config.dryRun) {
-            stopLossCooldownUntil.set(message.tokenID, now + STOP_LOSS_BG_COOLDOWN_MS);
+            // S1:仅真实成交才设完整冷却;FAK 零成交只设短退避,让持续破位的仓能尽快重试。
+            const filled = Number(result.takingAmount ?? 0) > 0 || Number(result.makingAmount ?? 0) > 0;
+            stopLossCooldownUntil.set(message.tokenID, now + (filled ? STOP_LOSS_BG_COOLDOWN_MS : STOP_LOSS_BG_RETRY_MS));
           }
           sendResponse({ ok: true, data: result });
         } catch (error) {

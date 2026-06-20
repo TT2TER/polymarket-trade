@@ -185,7 +185,9 @@ const CONDITIONAL_RETRY_MS = 15_000;
 const CONDITIONAL_DRYRUN_RETEST_MS = 30_000;
 // Phase 2b 半自动确认倒计时;超时按 fail-safe 自动执行(不取消)。
 const SEMI_AUTO_TTL_MS = 10_000;
-// 止损下单失败后的重试退避:清冷却后让持续破位的仓在此时长后可再次触发(避免失败静默禁用 60s)。
+// 取消半自动确认 = snooze:持续破位在此退避后重新弹确认,而非永久静默(M1)。
+const SEMI_AUTO_SNOOZE_MS = 30_000;
+// 止损下单失败/零成交后的重试退避:清冷却后让持续破位的仓在此时长后可再次触发。
 const STOPLOSS_RETRY_MS = 15_000;
 const semiAutoTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -718,6 +720,11 @@ const monitorStore = create<MonitorStore>((set, get) => ({
         stopLossStatuses: patchStopLossStatus(state.stopLossStatuses, asset, { lastResult: message, lastError: null }),
       }));
       notifyDesktop(result.dryRun ? t('stopLoss.dryRunTitle') : t('stopLoss.submittedTitle'), message);
+      // S1:真实单零成交(FAK 未撮合)不算已保护——settle 让持续破位的仓尽快重试。
+      const filled = result.dryRun || Number(result.takingAmount ?? 0) > 0 || Number(result.makingAmount ?? 0) > 0;
+      if (!filled) {
+        activeStopLossMonitor?.settle(asset, STOPLOSS_RETRY_MS);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       set((state) => ({
@@ -770,6 +777,8 @@ const monitorStore = create<MonitorStore>((set, get) => ({
       delete next[asset];
       return { pendingStopLoss: next };
     });
+    // M1:取消 = snooze;持续破位在退避后重新弹确认,而非永久静默。
+    activeStopLossMonitor?.settle(asset, SEMI_AUTO_SNOOZE_MS);
   },
 
   startMonitoring: () => {
@@ -830,6 +839,15 @@ const monitorStore = create<MonitorStore>((set, get) => ({
       // #4 封盘倒计时:为本帧新出现的 conditionId 低频补拉 gamma 元数据(内部去重,非阻塞)。
       if (snapshot.positions.length > 0) {
         void get().fetchMarketMeta(snapshot.positions.map((p) => p.conditionId));
+      }
+      // S2 兜底:半自动 fail-safe 不只依赖 setTimeout——逐 tick 兜底执行已超时的待确认
+      // (面板重载等导致 timer 丢失时仍能在下一帧自动平仓;confirmStopLoss 幂等,不会与 timer 双发)。
+      const pending = get().pendingStopLoss;
+      const nowTs = Date.now();
+      for (const item of Object.values(pending)) {
+        if (item.deadline <= nowTs) {
+          get().confirmStopLoss(item.asset);
+        }
       }
     });
     set({ isLoading: true });
